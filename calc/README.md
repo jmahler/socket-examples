@@ -11,6 +11,15 @@ to take a math expression as input and provide the result as output.
 The client takes input from a user or from a file and sends them
 to the server.  And the results are then printed back out.
 
+    (terminal 1)
+    $ ./calc_server 5001
+
+    (terminal 2)
+    $ ./calc_client localhost 5001
+    Enter expression:1+1
+    Answer: 2
+    ...
+
 CREDITS
 -------
 
