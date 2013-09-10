@@ -2,7 +2,7 @@
 all: calc_server calc_client
 
 calc_server: calc_server.c
-	gcc -Wall -Wextra -O2 -lm -lpthread $< -o $@
+	gcc -Wall -Wextra -lm -lpthread $< -o $@
 
 calc_client: calc_client.c
 	gcc -Wall -Wextra -O2 $< -o $@
