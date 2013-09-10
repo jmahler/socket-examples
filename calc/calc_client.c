@@ -82,8 +82,7 @@ int main(int argc, char* argv[]) {
 			break;
 	
 		// send the string, with null, to the calc server
-		send(sockfd, line, sz, 0);
-		// TODO - what about a partial send
+		send(sockfd, line, sz+1, 0);
 
 		recv(sockfd, recv_line, MAXRECV, 0);
 		recv_line[MAXRECV-1] = '\0';
