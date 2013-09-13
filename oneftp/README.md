@@ -12,12 +12,28 @@ what file name to save the data as.  Then the client is started
 and told what host to send to and what file to send.
 
     (terminal 1)
-    $ ./oneftp_server outfile.txt
+    $ ./oneftp_server out.dat
 
     (terminal 2)
-    $ ./oneftp_client localhost infile.txt
+    $ ./oneftp_client localhost in.dat
 
 When the file is transferred both the server and client exit.
+And the output file should be identical to the inputfile.
+
+    $ md5sum *.dat
+    5bd3f31b788354d533814ae9b225a4e2  in.dat
+    5bd3f31b788354d533814ae9b225a4e2  out.dat
+	$
+
+The chunk size is configurable by setting the macro BUFSIZE
+in each of the source files.  Timing tests can be run to
+see the effect changes in chunk size have on transfer speed.
+
+    $ time ./oneftp_client localhost in.dat
+    real    0m0.023s
+    user    0m0.000s
+    sys     0m0.012s
+    $
 
 CREDITS
 -------
