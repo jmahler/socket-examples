@@ -24,8 +24,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define MAXLINE 2000
-#define MAXRECV 20
+#define MAXLINE 2000  // maximum number of input characters
+#define MAXRECV 20	  // maximum size of recieve buffer (char)
 
 int main(int argc, char* argv[]) {
 	struct addrinfo hints;
@@ -35,8 +35,10 @@ int main(int argc, char* argv[]) {
 	char *server_name;
 	char *port;
 	int sockfd;
-	char line[MAXLINE+1];
+	char line[MAXLINE+2];  // +2 for '\n\0'
 	char recv_line[MAXRECV];
+	ssize_t ret;
+	int err = 0;
 
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s <server> <port>\n", argv[0]);
@@ -51,48 +53,65 @@ int main(int argc, char* argv[]) {
 
 	if ( (n = getaddrinfo(server_name, port, &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
-		return 1;
+		err = 1;
+		goto err_null;
 	}
 
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (sockfd < 0) {
+	if (-1 == sockfd) {
 		perror("Unable to create socket.");
-		return 1;
+		err = 1;
+		goto err_getaddrinfo;
 	}
 
 	if (-1 == connect(sockfd, res->ai_addr, sizeof(*(res->ai_addr)))) {
 		perror("connect");
-		return 1;
+		err = 1;
+		goto err_sock;
 	}
 
 	while (1) {
 		printf("Enter expression:");
 
-		if (!fgets(line, MAXLINE, stdin))
+		// get up to MAXLINE, +1 for '\n', +1 for fgets added '\0'
+		if (!fgets(line, MAXLINE+2, stdin))
 			continue;
 
 		sz = strlen(line);
 
-		// remove the new line
-		if (line[sz-1] == '\n')
-			line[--sz] = '\0';
+		// remove the final new line
+		line[--sz] = '\0';
 
 		// quit on an empty string
 		if (0 == sz)
 			break;
 	
-		// send the string, with null, to the calc server
-		send(sockfd, line, sz+1, 0);
+		// send the string (including null) to the calc server
+		n = send(sockfd, line, sz+1, 0);
+		if (-1 == n) {
+			perror("send");
+			err = 1;
+			goto err_sock;
+		}
 
-		recv(sockfd, recv_line, MAXRECV, 0);
-		recv_line[MAXRECV-1] = '\0';
-		// TODO - what about a partial recieve
+		ret = recv(sockfd, recv_line, MAXRECV, 0);
+		if (-1 == ret) {
+			perror("recv");
+			err = 1;
+			goto err_sock;
+		}
+
+		// enforce null line termination
+		recv_line[ret] = '\0';
 
 		printf("Answer: %s\n", recv_line);
 	}
 
+err_sock:
 	close(sockfd);
+err_getaddrinfo:
 	freeaddrinfo(res);
+err_null:
 
-	return 0;
+	return err;
 }

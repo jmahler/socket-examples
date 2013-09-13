@@ -25,7 +25,7 @@ CREDITS
 
 The `calc_server.c` code was provided by Dr. Kurtis Kredo III
 as part of his intro to networking class (EECE 555) taught at
-Chico State.
+California State University Chico.
 
 The `calc_client.c` code along with various additions to the server
 were provided by Jeremiah Mahler <jmmahler@gmail.com>.
