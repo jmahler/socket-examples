@@ -9,6 +9,10 @@ INDEX
 
  * calc - calculator server which takes commands from a client
 
+ * oneftp - transfer one file from client to server
+
+ * udp-echo - udp echo client and server
+
 COPYRIGHT
 ---------
 
