@@ -21,26 +21,46 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define MAXLINE 1500
 
+int sockfd;
+struct addrinfo *res;
+
+void cleanup(void) {
+	if (sockfd > 0)
+		close(sockfd);
+
+	if (res)
+		freeaddrinfo(res);
+}
+
 int main(int argc, char* argv[]) {
-	int err = 0;
-	struct addrinfo hints, *res;
-	int sockfd;
+	struct addrinfo hints;
 	int n;
 	char *host;
 	char *port;
 	int left, i;
 	char buf[MAXLINE];
 
+	// configure at exit cleanup function
+	sockfd = 0;
+	res = NULL;
+	if (atexit(cleanup) != 0) {
+		fprintf(stderr, "unable to set exit function\n");
+		exit(EXIT_FAILURE);
+	}
+	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+
+
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s <host> <port>\n", argv[0]);
-		err = 1;
-		goto err_usage;
+		exit(EXIT_FAILURE);
 	}
 	host = argv[1];
 	port = argv[2];
@@ -51,15 +71,13 @@ int main(int argc, char* argv[]) {
 
 	if ( (n = getaddrinfo(host, port, &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
-		err = 1;
-		goto err_addrinfo;
+		exit(EXIT_FAILURE);
 	}
 
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (sockfd < 0) {
 		perror("socket");
-		err = 1;
-		goto err_socket;
+		exit(EXIT_FAILURE);
 	}
 
 	while (fgets(buf, MAXLINE, stdin)) {
@@ -75,8 +93,7 @@ int main(int argc, char* argv[]) {
 					continue;
 
 				perror("sendto");
-				err = 1;
-				goto err_sendto;
+				exit(EXIT_FAILURE);
 			}
 			left -= n;
 			i += n;
@@ -90,8 +107,7 @@ int main(int argc, char* argv[]) {
 					continue;
 
 				perror("recvfrom");
-				err = 1;
-				goto err_recvfrom;
+				exit(EXIT_FAILURE);
 			}
 
 			// make sure it is terminated
@@ -103,13 +119,5 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-err_recvfrom:
-err_sendto:
-	close(sockfd);
-err_socket:
-	freeaddrinfo(res);
-err_addrinfo:
-err_usage:
-
-	return err;
+	return EXIT_SUCCESS;
 }

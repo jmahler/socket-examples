@@ -22,17 +22,29 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define PORT "16245"
 #define MAXLINE 1500
 
+int sockfd;
+struct addrinfo *res;
+
+void cleanup(void) {
+	if (sockfd > 0)
+		close(sockfd);
+
+	if (res)
+		freeaddrinfo(res);
+}
+
 int main(int argc, char* argv[]) {
 
-	int err = 0;
-	struct addrinfo hints, *res, *p;
+	struct addrinfo hints, *p;
 	int n;
 	int sockfd;
 	uint8_t msg[MAXLINE];
@@ -41,10 +53,17 @@ int main(int argc, char* argv[]) {
 	int left;
 	int i;
 
+	sockfd = 0;
+	res = NULL;
+	if (atexit(cleanup) != 0) {
+		fprintf(stderr, "unable to set exit function\n");
+		exit(EXIT_FAILURE);
+	}
+	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+
 	if (argc != 1) {
 		fprintf(stderr, "usage: %s\n", argv[0]);
-		err = 1;
-		goto err_argc;
+		exit(EXIT_FAILURE);
 	}
 
 	memset(&hints, 0, sizeof(hints));
@@ -54,8 +73,7 @@ int main(int argc, char* argv[]) {
 
 	if ( (n = getaddrinfo(NULL, PORT, &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
-		err = 1;
-		goto err_addrinfo;
+		exit(EXIT_FAILURE);
 	}
 
 	for (p = res; p != NULL; p = p->ai_next) {
@@ -77,8 +95,7 @@ int main(int argc, char* argv[]) {
 	}
 	if (NULL == p) {
 		fprintf(stderr, "unable to bind");
-		err = 1;
-		goto err_bind;
+		exit(EXIT_FAILURE);
 	}
 
 	while (1) {
@@ -90,8 +107,7 @@ int main(int argc, char* argv[]) {
 				continue;
 
 			perror("recvfrom");
-			err = 1;
-			goto err_recvfrom;
+			exit(EXIT_FAILURE);
 		}
 
 		left = n;
@@ -103,21 +119,12 @@ int main(int argc, char* argv[]) {
 					continue;
 
 				perror("sendto");
-				err = 1;
-				goto err_sendto;
+				exit(EXIT_FAILURE);
 			}
 			i += n;
 			left -= n;
 		}
 	}
 
-err_sendto:
-err_recvfrom:
-	close(sockfd);
-err_bind:
-	freeaddrinfo(res);
-err_addrinfo:
-err_argc:
-
-	return err;
+	return EXIT_SUCCESS;
 }
