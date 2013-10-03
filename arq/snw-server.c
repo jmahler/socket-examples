@@ -30,7 +30,6 @@
 
 #include "packetErrorSendTo.h"
 
-#define PORT "16245"
 #define MAXLINE 1500
 
 int sockfd;
@@ -54,6 +53,8 @@ int main(int argc, char* argv[]) {
 	socklen_t cliaddr_len;
 	int left;
 	int i;
+	struct sockaddr_in sin;
+	socklen_t len;
 
 	sockfd = 0;
 	res = NULL;
@@ -73,12 +74,13 @@ int main(int argc, char* argv[]) {
 	hints.ai_socktype 	= SOCK_DGRAM;
 	hints.ai_flags 		= AI_PASSIVE;
 
-	if ( (n = getaddrinfo(NULL, PORT, &hints, &res)) != 0) {
+	if ( (n = getaddrinfo(NULL, "0", &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
 		exit(EXIT_FAILURE);
 	}
 
 	for (p = res; p != NULL; p = p->ai_next) {
+
 		if ((sockfd = socket(p->ai_family, p->ai_socktype,
 							p->ai_protocol)) == -1) {
 			perror("socket");
@@ -86,17 +88,31 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);	
+			close(sockfd);
 			perror("bind");
 			continue;
 		}
 
-		printf("Port: %s\n", PORT);
+		// find the port number we were given
+		if (p->ai_family == AF_INET) {
+			len = sizeof(struct sockaddr_in);
+			if (getsockname(sockfd, (struct sockaddr *) &sin, &len) == -1) {
+				close(sockfd);	
+				perror("getsockname");
+				continue;
+			}
+
+			printf("Port: %u\n", ntohs(sin.sin_port));
+		} else {
+			fprintf(stderr, "only ipv4 supported\n");
+			close(sockfd);
+			continue;
+		}
 
 		break;
 	}
 	if (NULL == p) {
-		fprintf(stderr, "unable to bind");
+		fprintf(stderr, "unable to bind\n");
 		exit(EXIT_FAILURE);
 	}
 
