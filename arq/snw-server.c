@@ -1,17 +1,18 @@
-
 /*
- * echo_server.c
+ * snw-server (derived from echo_server.c)
  *
- * Echo server for use with the echo client.
+ * This server simply echos the data it receives
+ * back to the client.  It is meant to be used with
+ * the snw-client.c program.
  *
  *   (terminal 1)
- *   ./echo_server
+ *   ./snw-server
  *   Port: 16245
  *
  *   (terminal 2)
- *   ./echo_client localhost 16245
+ *   ./snw-client localhost 16245 data
  *
- * Refer to echo_client.c for information on its usage.
+ * Refer to snw-client.c for information on its usage.
  *
  * Author:
  *   Jeremiah Mahler <jmmahler@gmail.com>
@@ -30,7 +31,7 @@
 
 #include "packetErrorSendTo.h"
 
-#define MAXLINE 1500
+#define MAXLINE 1300
 
 int sockfd;
 struct addrinfo *res;
@@ -131,7 +132,8 @@ int main(int argc, char* argv[]) {
 		left = n;
 		i = 0;
 		while (left) {
-			n = packetErrorSendTo(sockfd, msg+i, left, 0, &cliaddr, cliaddr_len);
+			n = packetErrorSendTo(sockfd, msg+i, left, 0, &cliaddr,
+																cliaddr_len);
 			if (-1 == n) {
 				if (errno == EINTR)
 					continue;

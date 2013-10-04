@@ -6,10 +6,10 @@ all: snw-client snw-server
 libsendto := packetErrorSendTo
 
 snw-client: snw-client.c
-	gcc -Wall -Wextra $< -o $@ -L. -l$(libsendto)
+	gcc -Wall -Wextra -g $< -o $@ -L. -l$(libsendto)
 
 snw-server: snw-server.c
-	gcc -Wall -Wextra $< -o $@ -L. -l$(libsendto)
+	gcc -Wall -Wextra -g $< -o $@ -L. -l$(libsendto)
 
 clean:
 	-rm -f snw-client snw-server

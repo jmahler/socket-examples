@@ -1,9 +1,11 @@
-
 /*
  * snw-client.c (derived from echo_client.c)
  *
- * An echo client that uses the unreliable send to (packetErrorSendTo).
- * It it takes longer than TIMEOUT_MS to receive a reply from the
+ * This is a echo client except that it sends a file to the echo server
+ * and then stores the result.
+ *
+ * This uses the unreliable send to (packetErrorSendTo).
+ * If it takes longer than TIMEOUT_MS to receive a reply from the
  * echo server it will timeout and resend the message.
  *
  *   (terminal 1)
@@ -11,8 +13,15 @@
  *   Port: 16245
  *
  *   (terminal 2)
- *   ./snw-client localhost 16245
- *   (type in characters and the result will be echoed back)
+ *   ./snw-client localhost 16245 data
+ *   (output will be in data.out)
+ *
+ *   md5sum data.*
+ *   (should be identical)
+ *
+ * To generate test data the 'dd' command can be used.
+ *
+ *   dd if=/dev/urandom of=data bs=1M count=10
  *
  * Author:
  *   Jeremiah Mahler <jmmahler@gmail.com>
@@ -30,12 +39,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "packetErrorSendTo.h"
 
-#define MAXLINE 1500
-#define TIMEOUT_MS 100
-#define DEBUG 0
+#define DEBUG 1
+
+// Transfer will be attempted at MAXLINE,
+//   partial transfers are handled for any size.
+//#define MAXLINE 1000	// too small
+#define MAXLINE 1300	// packetErrorSendTo maximum, fastest
+//#define MAXLINE 1500	// MTU
+//#define MAXLINE 2500	// too large
+
+//#define TIMEOUT_MS 0.1  // errors on localhost
+#define TIMEOUT_MS 0.4  // OK on localhost
 
 int sockfd;
 struct addrinfo *res;
@@ -49,16 +67,31 @@ void cleanup(void) {
 }
 
 int main(int argc, char* argv[]) {
+	char *infile;
+	char outfile[1024];
+	int infd;
+	int outfd;
+
 	struct addrinfo hints;
 	int n;
 	char *host;
 	char *port;
-	int left, i;
+
 	char sbuf[MAXLINE];  // send buffer
 	char rbuf[MAXLINE];  // receive buffer
-	int len;
+
 	struct timeval tv;
 	fd_set rd_set;
+	int to_send, sent, recvd, to_write;
+	int si, wi;
+
+#if DEBUG
+	int timeout_count = 0;
+	int sent_bytes = 0;
+	int recvd_bytes = 0;
+	int num_send = 0;
+	int num_recv = 0;
+#endif
 
 	// configure at exit cleanup function
 	sockfd = 0;
@@ -69,13 +102,35 @@ int main(int argc, char* argv[]) {
 	}
 	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
 
-
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s <host> <port>\n", argv[0]);
+	if (argc != 4) {
+		fprintf(stderr, "usage: %s <host> <port> <input file>\n", argv[0]);
+		fprintf(stderr, "                output -> <in file>.out\n");
 		exit(EXIT_FAILURE);
 	}
 	host = argv[1];
 	port = argv[2];
+	infile = argv[3];
+
+	infd = open(infile, O_RDONLY);
+	if (-1 == infd) {
+		perror("open infile");
+		exit(EXIT_FAILURE);
+	}
+
+	n = snprintf(outfile, sizeof(outfile), "%s.out", infile);
+	if (n < 0) {
+		fprintf(stderr, "snprintf failed\n");
+		exit(EXIT_FAILURE);
+	}
+
+	outfd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC,
+								  S_IRUSR | S_IWUSR
+								| S_IRGRP | S_IWGRP
+								| S_IROTH);
+	if (-1 == outfd) {
+		perror("open outfile");
+		exit(EXIT_FAILURE);
+	}
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family 	= AF_INET;
@@ -92,30 +147,35 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	FD_ZERO(&rd_set);
-	FD_SET(sockfd, &rd_set);
+	while ( (n = read(infd, sbuf, MAXLINE))) {
+		if (-1 == n) {
+			if (errno == EINTR)
+				continue;
 
-	while (fgets(sbuf, MAXLINE, stdin)) {
-		len = strlen(sbuf);
+			perror("read");
+			exit(EXIT_FAILURE);
+		}
 
-		// sendto with ARQ
-		while (1) {
-			// write the line to the server
-			left = len;
-			i = 0;
-			while (left) {
-				n = packetErrorSendTo(sockfd, sbuf+i, left, 0,
-										res->ai_addr, res->ai_addrlen);
-				if (-1 == n) {
-					if (errno == EINTR)
-						continue;
+		to_send = n;
+		si = 0;
+		while (to_send) {
+#if DEBUG
+			num_send++;
+			printf("sendto(%d)\n", to_send);
+#endif
+			n = packetErrorSendTo(sockfd, sbuf+si, to_send, 0,
+									res->ai_addr, res->ai_addrlen);
+			if (-1 == n) {
+				if (errno == EINTR)
+					continue;
 
-					perror("sendto");
-					exit(EXIT_FAILURE);
-				}
-				left -= n;
-				i += n;
+				perror("sendto");
+				exit(EXIT_FAILURE);
 			}
+			sent = n;
+
+			FD_ZERO(&rd_set);
+			FD_SET(sockfd, &rd_set);
 
 			tv.tv_sec = 0;
 			tv.tv_usec = TIMEOUT_MS*1000;
@@ -126,32 +186,76 @@ int main(int argc, char* argv[]) {
 				exit(EXIT_FAILURE);
 			} else if (0 == n) {
 				// time out
-				if (DEBUG) printf("timeout\n");
+#if DEBUG
+				timeout_count++;
+				printf("timeout\n");
+#endif
 				continue;
 			}
-			// can read something
-			break;
-		}
 
-		// read the result from the server, print to stdout
-		while (1) {
-			n = recvfrom(sockfd, rbuf, MAXLINE, 0, NULL, NULL);
-			if (-1 == n) {
-				if (errno == EINTR)
-					continue;
+			// if we can read something,
+			//   our send was a success
+			to_send -= sent;
+			si += sent;
+#if DEBUG
+			sent_bytes += sent;
+#endif
 
-				perror("recvfrom");
-				exit(EXIT_FAILURE);
+			while (1) {
+				n = recvfrom(sockfd, rbuf, sent, 0, NULL, NULL);
+#if DEBUG
+				num_recv++;
+#endif
+				if (-1 == n) {
+					if (errno == EINTR)
+						continue;
+
+					perror("recvfrom");
+					exit(EXIT_FAILURE);
+				}
+				recvd = n;
+#if DEBUG
+				printf("recvfrom(%d)\n", recvd);
+#endif
+
+				if (recvd != sent) {
+					fprintf(stderr, "sent(%d) != recvd(%d), ", sent, recvd);
+					fprintf(stderr, "  server is mis-behaving.\n");
+				}
+
+#if DEBUG
+				recvd_bytes += recvd;
+#endif
+
+				to_write = recvd;
+				wi = 0;
+				while (to_write) {
+					n = write(outfd, rbuf+wi, n);
+					if (-1 == n) {
+						if (errno == EINTR)
+							continue;
+
+						perror("write");
+						exit(EXIT_FAILURE);
+					}
+
+					to_write -= n;
+					wi += n;
+				}
+
+				break;
 			}
-
-			// make sure it is terminated
-			rbuf[n] = '\0';
-
-			fputs(rbuf, stdout);
-
-			break;
 		}
 	}
+
+#if DEBUG
+	printf("  sent (bytes): %d\n", sent_bytes);
+	printf(" recvd (bytes): %d\n", recvd_bytes);
+	printf("       # sends: %d\n", num_send);
+	printf("       # recvs: %d\n", num_recv);
+	printf("  repeat sends: %d (%.2f%%)\n", timeout_count,
+					((double) timeout_count / (double) num_send)*100);
+#endif
 
 	return EXIT_SUCCESS;
 }

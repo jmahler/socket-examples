@@ -13,6 +13,8 @@ INDEX
 
  * udp-echo - udp echo client and server
 
+ * arq - automatic repeat request (ARQ) data echo
+
 COPYRIGHT
 ---------
 
