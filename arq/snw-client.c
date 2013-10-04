@@ -29,9 +29,10 @@
  */
 
 #include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <errno.h>
 #include <netdb.h>
 #include <signal.h>
@@ -52,8 +53,12 @@
 //#define MAXLINE 1500	// MTU
 //#define MAXLINE 2500	// too large
 
-//#define TIMEOUT_MS 0.1  // errors on localhost
-#define TIMEOUT_MS 0.4  // OK on localhost
+// If the timeout is too short duplicates will be sent and
+// errors will result.  So this time must be larger than the
+// worst case error.  The time provided by ping can be helpful.
+//#define TIMEOUT_MS 0.2  // errors on localhost
+//#define TIMEOUT_MS 0.4  // OK on localhost
+#define TIMEOUT_MS 400  // OK on the internet, twic ~200 ms ping time
 
 int sockfd;
 struct addrinfo *res;
