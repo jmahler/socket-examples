@@ -1,10 +1,11 @@
 /*
- * snw-client.c (derived from echo_client.c)
+ * snw-client.c
  *
- * This is a echo client except that it sends a file to the echo server
- * and then stores the result.
+ * This is a echo client except that it sends a file to a echo server
+ * instead of taking input from stdin.  The data echoed back is then
+ * stored to a file (.out).
  *
- * This uses the unreliable send to (packetErrorSendTo).
+ * This uses the unreliable sendto function (packetErrorSendTo).
  * If it takes longer than TIMEOUT_MS to receive a reply from the
  * echo server it will timeout and resend the message.
  *
@@ -19,9 +20,16 @@
  *   md5sum data.*
  *   (should be identical)
  *
- * To generate test data the 'dd' command can be used.
+ * To generate data the 'dd' command can be used.
+ * The following generates 10M of random data.
  *
  *   dd if=/dev/urandom of=data bs=1M count=10
+ *
+ * To enable all sorts of debugging output and statistics set DEBUG=1
+ * and recompile.
+ *
+ * The maximum sequence number (MAXSEQ) and timeout (TIMEOUT_MS)
+ * can also be changed to see the effects.
  *
  * Author:
  *   Jeremiah Mahler <jmmahler@gmail.com>
@@ -44,21 +52,36 @@
 
 #include "packetErrorSendTo.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
-// Transfer will be attempted at MAXLINE,
-//   partial transfers are handled for any size.
+// MAXLINE determines the buffer size for send/recv.
+// This code will handle any size but it is fastest
+// when it is the same size as the sendto function.
+//
 //#define MAXLINE 1000	// too small
 #define MAXLINE 1300	// packetErrorSendTo maximum, fastest
 //#define MAXLINE 1500	// MTU
 //#define MAXLINE 2500	// too large
 
-// If the timeout is too short duplicates will be sent and
-// errors will result.  So this time must be larger than the
-// worst case error.  The time provided by ping can be helpful.
-//#define TIMEOUT_MS 0.2  // errors on localhost
-//#define TIMEOUT_MS 0.4  // OK on localhost
-#define TIMEOUT_MS 400  // OK on the internet, twic ~200 ms ping time
+// maximum sequence number
+#define MAXSEQ 1	// 0, 1
+//#define MAXSEQ 2	// 0, 1, 2
+
+// TIMEOUT_MS determines the recvfrom timeout before a packet
+// is re-sent.  With two sequence numbers (MAXSEQ=1) it can
+// detect duplicates and handle a very small time out (0.001 ms).
+// With one sequence number (MAXSEQ=0) duplicates cannot be detected
+// and the delay has to be very large (> 400 ms).
+//
+// If the delay is too small it will be slow because it has to deal with
+// many duplicates.  If it is too long it will be slow due to the number
+// of timeouts.  There is an optimal value somewhere in between depending
+// upon the the latency of the network being used.  In any case it should
+// handle duplicate packets properly and avoid any data corruption.
+//
+//#define TIMEOUT_MS 0.1  // localhost
+#define TIMEOUT_MS 1
+//#define TIMEOUT_MS 100  // slow remote host
 
 int sockfd;
 struct addrinfo *res;
@@ -71,19 +94,30 @@ void cleanup(void) {
 		freeaddrinfo(res);
 }
 
+#define HEADER_SZ	sizeof(unsigned char)
+#define BUF_SZ		MAXLINE - HEADER_SZ
+// An entire packet must not exceed MAXLINE bytes.
+struct arq_packet {
+	// header
+	unsigned char seq;
+	// data
+	char buf[BUF_SZ];
+};
+
 int main(int argc, char* argv[]) {
 	char *infile;
 	char outfile[1024];
 	int infd;
 	int outfd;
 
-	struct addrinfo hints;
 	int n;
+
+	struct addrinfo hints;
 	char *host;
 	char *port;
 
-	char sbuf[MAXLINE];  // send buffer
-	char rbuf[MAXLINE];  // receive buffer
+	struct arq_packet sbuf;	// send buffer
+	struct arq_packet rbuf;	// receive buffer
 
 	struct timeval tv;
 	fd_set rd_set;
@@ -96,9 +130,10 @@ int main(int argc, char* argv[]) {
 	int recvd_bytes = 0;
 	int num_send = 0;
 	int num_recv = 0;
+	int invalid_seq_count = 0;
 #endif
 
-	// configure at exit cleanup function
+	// Setup the cleanup() function to be called at exit() or Ctrl-C.
 	sockfd = 0;
 	res = NULL;
 	if (atexit(cleanup) != 0) {
@@ -122,12 +157,12 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+	// The output file is the infile with .out appended.
 	n = snprintf(outfile, sizeof(outfile), "%s.out", infile);
 	if (n < 0) {
 		fprintf(stderr, "snprintf failed\n");
 		exit(EXIT_FAILURE);
 	}
-
 	outfd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC,
 								  S_IRUSR | S_IWUSR
 								| S_IRGRP | S_IWGRP
@@ -152,7 +187,9 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	while ( (n = read(infd, sbuf, MAXLINE))) {
+	sbuf.seq = 0;  // initial sequence number
+
+	while ( (n = read(infd, (void *) &sbuf.buf, BUF_SZ))) {
 		if (-1 == n) {
 			if (errno == EINTR)
 				continue;
@@ -161,14 +198,20 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_FAILURE);
 		}
 
-		to_send = n;
+		// The amount read from a file may be too large to send in one
+		// operation.  It will loop until there is no data left to send.
+		to_send = HEADER_SZ + n;
 		si = 0;
 		while (to_send) {
 #if DEBUG
 			num_send++;
-			printf("sendto(%d)\n", to_send);
+			printf("sendto(bytes=%d, seq=%d)\n", to_send, sbuf.seq);
 #endif
-			n = packetErrorSendTo(sockfd, sbuf+si, to_send, 0,
+
+			// Send some data then setup a timeout waiting to read.
+			// If it times out, automatically repeat the request (ARQ).
+
+			n = packetErrorSendTo(sockfd, &sbuf + si, to_send, 0,
 									res->ai_addr, res->ai_addrlen);
 			if (-1 == n) {
 				if (errno == EINTR)
@@ -198,16 +241,16 @@ int main(int argc, char* argv[]) {
 				continue;
 			}
 
-			// if we can read something,
-			//   our send was a success
-			to_send -= sent;
-			si += sent;
 #if DEBUG
 			sent_bytes += sent;
 #endif
 
+			// We can read something but it my be a duplicate...
+
 			while (1) {
-				n = recvfrom(sockfd, rbuf, sent, 0, NULL, NULL);
+				// It is assumed that the amount received will be identical
+				// to the amount sent.  This is checked below (recvd != send).
+				n = recvfrom(sockfd, (void *) &rbuf, sent, 0, NULL, NULL);
 #if DEBUG
 				num_recv++;
 #endif
@@ -220,35 +263,67 @@ int main(int argc, char* argv[]) {
 				}
 				recvd = n;
 #if DEBUG
-				printf("recvfrom(%d)\n", recvd);
+				printf("recvfrom(bytes=%d, seq=%d)\n", recvd, rbuf.seq);
 #endif
-
-				if (recvd != sent) {
-					fprintf(stderr, "sent(%d) != recvd(%d), ", sent, recvd);
-					fprintf(stderr, "  server is mis-behaving.\n");
-				}
-
-#if DEBUG
-				recvd_bytes += recvd;
-#endif
-
-				to_write = recvd;
-				wi = 0;
-				while (to_write) {
-					n = write(outfd, rbuf+wi, n);
-					if (-1 == n) {
-						if (errno == EINTR)
-							continue;
-
-						perror("write");
-						exit(EXIT_FAILURE);
-					}
-
-					to_write -= n;
-					wi += n;
-				}
-
 				break;
+			}
+
+			if (recvd != sent) {
+				fprintf(stderr, "sent(%d) != recvd(%d), ", sent, recvd);
+				fprintf(stderr, "  server is mis-behaving.\n");
+				exit(EXIT_FAILURE);
+			}
+
+			if (rbuf.seq != sbuf.seq) {
+				// An unexpected sequence number was received.
+#if DEBUG
+				printf("INVALID SEQUENCE NUMBER!\n");
+				invalid_seq_count++;
+#endif
+				// discard this packet
+
+				// continue to re-send the packet
+				continue;
+			}
+#if DEBUG
+			recvd_bytes += recvd;
+#endif
+
+			// A successful write and read was completed!
+			//
+			// Steps left:
+			//
+			//   - write the data to the .out file
+			//   - go to the next chunk of data (to_send, si).
+			//   - update the sequence number
+			//
+
+			// write the data to the .out file
+			to_write = recvd - HEADER_SZ;
+			wi = 0;
+			while (to_write) {
+				n = write(outfd, rbuf.buf + wi, to_write);
+				if (-1 == n) {
+					if (errno == EINTR)
+						continue;
+
+					perror("write");
+					exit(EXIT_FAILURE);
+				}
+#if DEBUG
+				printf("wrote to file %i B\n", to_write);
+#endif
+				to_write -= n;
+				wi += n;
+			}
+
+			// go to the next chunk of data
+			to_send -= sent;
+			si += sent;
+
+			// update the sequence number
+			if (++sbuf.seq > MAXSEQ) {
+				sbuf.seq = 0;
 			}
 		}
 	}
@@ -260,6 +335,7 @@ int main(int argc, char* argv[]) {
 	printf("       # recvs: %d\n", num_recv);
 	printf("  repeat sends: %d (%.2f%%)\n", timeout_count,
 					((double) timeout_count / (double) num_send)*100);
+	printf("   invalid seq: %d\n", invalid_seq_count);
 #endif
 
 	return EXIT_SUCCESS;
