@@ -1,27 +1,38 @@
 /*
- * snw-server (derived from echo_server.c)
+ * snw-server.c
  *
- * This server simply echos the data it receives
- * back to the client.  It is meant to be used with
- * the snw-client.c program.
+ * On startup this server will bind to a free port and
+ * display which one it is using.
  *
  *   (terminal 1)
  *   ./snw-server
  *   Port: 16245
  *
+ * Then the snw-client can connect and send a string of
+ * the file name that the server should open and read
+ * data from.  The server will transfer the data from
+ * this file and exit.
+ *
  *   (terminal 2)
  *   ./snw-client localhost 16245 data
  *
- * Refer to snw-client.c for information on its usage.
- *
  * Author:
+ *
  *   Jeremiah Mahler <jmmahler@gmail.com>
+ *
+ * Copyright:
+ *
+ * Copyright &copy; 2013, Jeremiah Mahler.  All Rights Reserved.
+ * This project is free software and released under
+ * the GNU General Public License.
  *
  */
 
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
@@ -29,9 +40,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "packetErrorSendTo.h"
-
-#define MAXLINE 1300
+#include "arq.h"
 
 int sockfd;
 struct addrinfo *res;
@@ -47,15 +56,23 @@ void cleanup(void) {
 int main(int argc, char* argv[]) {
 
 	struct addrinfo hints, *p;
+
 	int n;
+
 	int sockfd;
-	uint8_t msg[MAXLINE];
 	struct sockaddr cliaddr;
 	socklen_t cliaddr_len;
-	int left;
-	int i;
 	struct sockaddr_in sin;
 	socklen_t len;
+
+	char sbuf[MAXDATA];
+	char rbuf[MAXDATA];
+
+	char *infile;
+	int infd;
+
+	size_t left;
+	size_t i;
 
 	sockfd = 0;
 	res = NULL;
@@ -117,33 +134,49 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+	// receive the file name
 	while (1) {
 		cliaddr_len = sizeof(cliaddr);
-
-		n = recvfrom(sockfd, msg, MAXLINE, 0, &cliaddr, &cliaddr_len);
+		n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
+										&cliaddr, &cliaddr_len);
 		if (-1 == n) {
-			if (errno == EINTR)
-				continue;
+			perror("arq_recvfrom");
+			exit(EXIT_FAILURE);
+		}
+		break;
+	}
 
-			perror("recvfrom");
+	infile = rbuf;
+	infd = open(infile, O_RDONLY);
+	if (-1 == infd) {
+		perror("open infile");
+		exit(EXIT_FAILURE);
+	}
+
+	while ( (n = read(infd, &sbuf, MAXDATA))) {
+		if (-1 == n) {
+			perror("read");
 			exit(EXIT_FAILURE);
 		}
 
 		left = n;
 		i = 0;
 		while (left) {
-			n = packetErrorSendTo(sockfd, msg+i, left, 0, &cliaddr,
-																cliaddr_len);
+			n = arq_sendto(sockfd, &sbuf + i, left, 0, &cliaddr, cliaddr_len);
 			if (-1 == n) {
-				if (errno == EINTR)
-					continue;
-
-				perror("sendto");
+				perror("arq_sendto");
 				exit(EXIT_FAILURE);
 			}
-			i += n;
 			left -= n;
+			i += n;
 		}
+	}
+
+	// An empty send signals EOF
+	n = arq_sendto(sockfd, &sbuf, 0, 0, &cliaddr, cliaddr_len);
+	if (-1 == n) {
+		perror("arq_sendto, EOF");
+		exit(EXIT_FAILURE);
 	}
 
 	return EXIT_SUCCESS;

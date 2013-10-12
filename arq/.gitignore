@@ -2,3 +2,4 @@ snw-client
 snw-server
 libpacketErrorSendTo.a
 data*
+arq.o
