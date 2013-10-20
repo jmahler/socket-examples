@@ -15,6 +15,8 @@ INDEX
 
  * arq - Automatic Repeat Request (ARQ) file transfer
 
+ * packets - read packets and display header info
+
 COPYRIGHT
 ---------
 
