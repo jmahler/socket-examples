@@ -19,6 +19,10 @@
  *   8c:70:5a:83:2b:64 -> 0:1a:70:5a:6e:9 [IPv4] 192.168.2.113 -> 8.8.8.8 
  *   0:1a:70:5a:6e:9 -> 8c:70:5a:83:2b:64 [IPv4] 8.8.8.8 -> 192.168.2.113 
  *
+ * To process a capture give the file name as an argument.
+ *
+ *   $ sudo ./packets v6-http.cap
+ *
  * The libpcap [www.tcpdump.org] library is used to read the packets.
  *
  * Author:
@@ -32,6 +36,7 @@
 #include <netinet/ether.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <sys/socket.h>
 #include <stdio.h>
 #include <string.h>
@@ -51,7 +56,9 @@ int main(int argc, char *argv[]) {
 	uint32_t len;
 
 	struct ether_header *ethhdr = NULL;
-	char *str;
+	char *strp;
+	const int MAXSTR = 128;
+	char str[MAXSTR];
 	uint16_t ether_type;
 
 	struct ip *ip = NULL;
@@ -60,6 +67,8 @@ int main(int argc, char *argv[]) {
 	uint16_t _arp_op;
 	struct in_addr *arp_spa;
 	struct in_addr *arp_tpa;
+
+	struct ip6_hdr *ip6_hdr;
 
 
 	// Check command line arguments
@@ -140,12 +149,12 @@ int main(int argc, char *argv[]) {
 			ethhdr = (struct ether_header*) packet_data;
 
 			// source mac address
-			str = ether_ntoa((struct ether_addr *) &ethhdr->ether_shost);
-			printf("%s -> ", str);
+			strp = ether_ntoa((struct ether_addr *) &ethhdr->ether_shost);
+			printf("%s -> ", strp);
 
 			// destination mac address
-			str = ether_ntoa((struct ether_addr *) &ethhdr->ether_dhost);
-			printf("%s ", str);
+			strp = ether_ntoa((struct ether_addr *) &ethhdr->ether_dhost);
+			printf("%s ", strp);
 
 			// Ethernet type
 			ether_type = ntohs(ethhdr->ether_type);
@@ -162,8 +171,11 @@ int main(int argc, char *argv[]) {
 
 				ip = (struct ip*) (packet_data + ETH_HLEN);
 
-				printf("%s -> ", inet_ntoa(ip->ip_src));
-				printf("%s ", inet_ntoa(ip->ip_dst));
+				inet_ntop(AF_INET, &ip->ip_src, str, MAXSTR);
+				printf("%s -> ", str);
+
+				inet_ntop(AF_INET, &ip->ip_dst, str, MAXSTR);
+				printf("%s ", str);
 			} else if (ether_type == ETHERTYPE_ARP) {
 				printf("[ARP] ");
 
@@ -194,8 +206,8 @@ int main(int argc, char *argv[]) {
 					printf("at ");
 
 					// sender hardware address (sha)
-					str = ether_ntoa((struct ether_addr *) &ether_arp->arp_sha);
-					printf("%s ", str);
+					strp = ether_ntoa((struct ether_addr*) &ether_arp->arp_sha);
+					printf("%s ", strp);
 
 				} else {
 					// unknown
@@ -206,6 +218,18 @@ int main(int argc, char *argv[]) {
 				printf("[VLAN] ");
 			} else if (ether_type == ETHERTYPE_IPV6) {
 				printf("[IPv6] ");
+
+				if (len < ETH_HLEN + sizeof(struct ip)) {
+					fprintf(stderr, "IPv6 header is too small, discarding\n");
+					continue;
+				}
+
+				ip6_hdr = (struct ip6_hdr*) (packet_data + ETH_HLEN);
+
+				inet_ntop(AF_INET6, &ip6_hdr->ip6_src, str, MAXSTR);
+				printf("%s -> ", str);
+				inet_ntop(AF_INET6, &ip6_hdr->ip6_dst, str, MAXSTR);
+				printf("%s ", str);
 			} else {
 				printf("[?:0x%.4x] ", ether_type);
 			}
