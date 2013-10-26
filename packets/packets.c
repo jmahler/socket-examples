@@ -70,6 +70,7 @@ int main(int argc, char *argv[]) {
 
 	struct ip6_hdr *ip6_hdr;
 
+	uint16_t *vlan_id;
 
 	// Check command line arguments
 	if (argc > 2) {
@@ -216,6 +217,13 @@ int main(int argc, char *argv[]) {
 
 			} else if (ether_type == ETHERTYPE_VLAN) {
 				printf("[VLAN] ");
+
+				vlan_id = (uint16_t*) (packet_data + ETH_HLEN);
+
+				*vlan_id = ntohs(*vlan_id) & 0xFFF;
+
+				printf("ID = %i ", *vlan_id);
+
 			} else if (ether_type == ETHERTYPE_IPV6) {
 				printf("[IPv6] ");
 
