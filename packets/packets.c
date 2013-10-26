@@ -29,6 +29,8 @@
  *
  *  Jeremiah Mahler <jmmahler@gmail.com>
  *
+ *  CSU Chico, EECE 555, Fall 2013
+ *
  */
 
 #include <arpa/inet.h>
@@ -56,7 +58,7 @@ int main(int argc, char *argv[]) {
 	uint32_t len;
 
 	struct ether_header *ethhdr = NULL;
-	char *strp;
+	char *strp = NULL;
 	const int MAXSTR = 128;
 	char str[MAXSTR];
 	uint16_t ether_type;
@@ -65,10 +67,10 @@ int main(int argc, char *argv[]) {
 
 	struct ether_arp *ether_arp = NULL;
 	uint16_t _arp_op;
-	struct in_addr *arp_spa;
-	struct in_addr *arp_tpa;
+	struct in_addr *arp_spa = NULL;
+	struct in_addr *arp_tpa = NULL;
 
-	struct ip6_hdr *ip6_hdr;
+	struct ip6_hdr *ip6_hdr = NULL;
 
 	uint16_t *vlan_id;
 
@@ -140,8 +142,6 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 
-			// parse Ethernet, IP, ...
-
 			if (len < sizeof(struct ether_header)) {
 				fprintf(stderr, "Not enough data for Ethernet, discarding.\n");
 				continue;
@@ -172,9 +172,11 @@ int main(int argc, char *argv[]) {
 
 				ip = (struct ip*) (packet_data + ETHER_HDR_LEN);
 
+				// IP source address
 				inet_ntop(AF_INET, &ip->ip_src, str, MAXSTR);
 				printf("%s -> ", str);
 
+				// IP destination address
 				inet_ntop(AF_INET, &ip->ip_dst, str, MAXSTR);
 				printf("%s ", str);
 			} else if (ether_type == ETHERTYPE_ARP) {
@@ -218,16 +220,20 @@ int main(int argc, char *argv[]) {
 			} else if (ether_type == ETHERTYPE_VLAN) {
 				printf("[VLAN] ");
 
+				if (len < ETHER_HDR_LEN + sizeof(uint16_t)) {
+					fprintf(stderr, "VLAN header is too small, discarding\n");
+					continue;
+				}
+
+				// VLAN ID
 				vlan_id = (uint16_t*) (packet_data + ETHER_HDR_LEN);
-
 				*vlan_id = ntohs(*vlan_id) & 0xFFF;
-
 				printf("ID = %i ", *vlan_id);
 
 			} else if (ether_type == ETHERTYPE_IPV6) {
 				printf("[IPv6] ");
 
-				if (len < ETHER_HDR_LEN + sizeof(struct ip)) {
+				if (len < ETHER_HDR_LEN + sizeof(struct ip6_hdr)) {
 					fprintf(stderr, "IPv6 header is too small, discarding\n");
 					continue;
 				}
@@ -239,7 +245,7 @@ int main(int argc, char *argv[]) {
 				inet_ntop(AF_INET6, &ip6_hdr->ip6_dst, str, MAXSTR);
 				printf("%s ", str);
 			} else {
-				printf("[?:0x%.4x] ", ether_type);
+				printf("[Other] ");
 			}
 
 			printf("\n");
