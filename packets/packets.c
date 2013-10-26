@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 
-			// Ethernet
+			// parse Ethernet, IP, ...
 
 			if (len < sizeof(struct ether_header)) {
 				fprintf(stderr, "Not enough data for Ethernet, discarding.\n");
@@ -165,12 +165,12 @@ int main(int argc, char *argv[]) {
 			} else if (ether_type == ETHERTYPE_IP) {
 				printf("[IPv4] ");
 
-				if (len < ETH_HLEN + sizeof(struct ip)) {
+				if (len < ETHER_HDR_LEN + sizeof(struct ip)) {
 					fprintf(stderr, "IP header is too small, discarding\n");
 					continue;
 				}
 
-				ip = (struct ip*) (packet_data + ETH_HLEN);
+				ip = (struct ip*) (packet_data + ETHER_HDR_LEN);
 
 				inet_ntop(AF_INET, &ip->ip_src, str, MAXSTR);
 				printf("%s -> ", str);
@@ -180,12 +180,12 @@ int main(int argc, char *argv[]) {
 			} else if (ether_type == ETHERTYPE_ARP) {
 				printf("[ARP] ");
 
-				if (len < ETH_HLEN + sizeof(struct ether_arp)) {
+				if (len < ETHER_HDR_LEN + sizeof(struct ether_arp)) {
 					fprintf(stderr, "ARP header is too small, discarding\n");
 					continue;
 				}
 
-				ether_arp = (struct ether_arp*) (packet_data + ETH_HLEN);
+				ether_arp = (struct ether_arp*) (packet_data + ETHER_HDR_LEN);
 
 				_arp_op = ntohs(ether_arp->arp_op);
 
@@ -218,7 +218,7 @@ int main(int argc, char *argv[]) {
 			} else if (ether_type == ETHERTYPE_VLAN) {
 				printf("[VLAN] ");
 
-				vlan_id = (uint16_t*) (packet_data + ETH_HLEN);
+				vlan_id = (uint16_t*) (packet_data + ETHER_HDR_LEN);
 
 				*vlan_id = ntohs(*vlan_id) & 0xFFF;
 
@@ -227,12 +227,12 @@ int main(int argc, char *argv[]) {
 			} else if (ether_type == ETHERTYPE_IPV6) {
 				printf("[IPv6] ");
 
-				if (len < ETH_HLEN + sizeof(struct ip)) {
+				if (len < ETHER_HDR_LEN + sizeof(struct ip)) {
 					fprintf(stderr, "IPv6 header is too small, discarding\n");
 					continue;
 				}
 
-				ip6_hdr = (struct ip6_hdr*) (packet_data + ETH_HLEN);
+				ip6_hdr = (struct ip6_hdr*) (packet_data + ETHER_HDR_LEN);
 
 				inet_ntop(AF_INET6, &ip6_hdr->ip6_src, str, MAXSTR);
 				printf("%s -> ", str);

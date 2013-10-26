@@ -15,7 +15,9 @@ INDEX
 
  * arq - Automatic Repeat Request (ARQ) file transfer
 
- * packets - read packets and display header info
+ * packets - read packets (using [libpcap][libpcap]) and display headers
+
+  [libpcap]: http://www.tcpdump.org
 
 COPYRIGHT
 ---------
