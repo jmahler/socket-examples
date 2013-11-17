@@ -42,11 +42,11 @@
 
 #define MAC_ANY "00:00:00:00:00:00"
 #define MAC_BCAST "FF:FF:FF:FF:FF:FF"
-// ARP protocol address length
+// ARP protocol address length (from RFC 826)
 #define ARP_PROLEN 4
 
 // Time after which to give up waiting for a response.
-#define RESP_TIMEOUT 1
+#define RESP_TIMEOUT 1  // sec
 
 // {{{ setsrcipmac()
 /*
@@ -217,7 +217,7 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 // }}}
 
 pcap_t *pcap_handle = NULL;  // Handle for PCAP library
-char *userin = NULL;
+char   *userin 		= NULL;  // user input from stdin
 
 // {{{ cleanup()
 /*
@@ -294,15 +294,25 @@ int check_response(struct pcap_pkthdr *packet_hdr, const u_char *packet_data) {
 }
 // }}}
 
+// {{{ resp_timeout_handler()
+/*
+ * resp_timeout_handler()
+ *
+ * pcap_next_ex() will block waiting for packets.
+ * Using this handler in conjuction with signal/alarm
+ * it will abort pcap_next_ex() when called.
+ *
+ */
 void resp_timeout_handler() {
 	// tell pcap_next_ex to break
 	pcap_breakloop(pcap_handle);
 }
+// }}}
 
 int main(int argc, char *argv[]) {
 
-	char pcap_buff[PCAP_ERRBUF_SIZE];       // Error buffer used by pcap
-	char *dev_name = NULL;                  // Device name for live capture
+	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
+	char *dev_name = NULL;				// Device name for live capture
 
 	size_t userin_len = 0;
 
@@ -312,7 +322,7 @@ int main(int argc, char *argv[]) {
 	struct pcap_pkthdr *packet_hdr = NULL;
 	const u_char *packet_data = NULL;
 
-	int got_response;
+	char got_response;
 
 	// set atexit() cleanup function
 	if (atexit(cleanup) != 0) {
@@ -374,9 +384,14 @@ int main(int argc, char *argv[]) {
 		// wait for a response
 		got_response = 0;
 
+		// engage the timeout, to quit if there is no response
 		alarm(RESP_TIMEOUT);
-		signal(SIGALRM, resp_timeout_handler);
+		if (SIG_ERR == signal(SIGALRM, resp_timeout_handler)) {
+			perror("signal(SIGALRM) failed");
+			exit(EXIT_FAILURE);
+		}
 
+		// look for a response
 		while (1) {
 			// receive some data
 			ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
