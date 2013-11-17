@@ -150,11 +150,11 @@ int main(int argc, char *argv[]) {
 			ethhdr = (struct ether_header*) packet_data;
 
 			// source mac address
-			strp = ether_ntoa((struct ether_addr *) &ethhdr->ether_shost);
+			strp = ether_ntoa((struct ether_addr*) &ethhdr->ether_shost);
 			printf("%s -> ", strp);
 
 			// destination mac address
-			strp = ether_ntoa((struct ether_addr *) &ethhdr->ether_dhost);
+			strp = ether_ntoa((struct ether_addr*) &ethhdr->ether_dhost);
 			printf("%s ", strp);
 
 			// Ethernet type

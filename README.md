@@ -17,6 +17,8 @@ INDEX
 
  * packets - read packets (using [libpcap][libpcap]) and display headers
 
+ * arp_resolver - resolves a MAC address for a IP address using ARP
+
   [libpcap]: http://www.tcpdump.org
 
 COPYRIGHT

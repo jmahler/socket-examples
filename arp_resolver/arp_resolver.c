@@ -1,7 +1,7 @@
 /*
  * arp_resolver.c
  *
- * Given an IP address as input it tries to resolve the MAC address using ARP.
+ * Given an IP address as input and it will resolve the MAC address using ARP.
  *
  *   $ sudo ./arp_resolver wlan0
  *   Enter next IP address: 192.168.2.1
@@ -36,24 +36,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <pcap/pcap.h>
 
 #define MAC_ANY "00:00:00:00:00:00"
 #define MAC_BCAST "FF:FF:FF:FF:FF:FF"
+// ARP protocol address length
+#define ARP_PROLEN 4
 
+// Time after which to give up waiting for a response.
+#define RESP_TIMEOUT 1
 
+// {{{ setsrcipmac()
 /*
  * setsrcipmac()
  *
  *   Returns: 0 on success, < 0 on error
  *
  * Sets the global variables for our source ip (src_ip)
- * and mac address (src_mac);
+ * and mac address (src_mac).
  */
-
-char src_mac[INET6_ADDRSTRLEN];
-char src_ip[INET6_ADDRSTRLEN];
+char src_mac[INET6_ADDRSTRLEN];	// "00:1c:34:92:11:22"
+char src_ip[INET6_ADDRSTRLEN];	// "192.168.1.1"
 
 int setsrcipmac(char *dev_str) {
 	int err;
@@ -72,6 +77,7 @@ int setsrcipmac(char *dev_str) {
 	src_mac[0] = '\0';
 	src_ip[0] = '\0';
 
+	// go through all the interface addresses
 	for (p = ifap; p != NULL; p = p->ifa_next) {
 		sa = p->ifa_addr;
 
@@ -112,7 +118,9 @@ int setsrcipmac(char *dev_str) {
 
 	return 0;
 }
+// }}}
 
+// {{{ arp_request()
 /*
  * arp_request()
  *
@@ -120,6 +128,10 @@ int setsrcipmac(char *dev_str) {
  *
  * Inject an arp request to the address given.
  *
+ * setsrcipmac() must be called once before using this function
+ * to set the ip and mac.
+ *
+ *   setsrcipmac();
  *   arp_inject(pcap_handle, "192.168.2.1");
  */
 int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
@@ -170,7 +182,7 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 	ether_arp->arp_hln = ETH_ALEN;
 
 	// protocol address length
-	ether_arp->arp_pln = 4;  // XXX - magic number
+	ether_arp->arp_pln = ARP_PROLEN;
 
 	// operation
 	ether_arp->arp_op = htons(ARPOP_REQUEST);
@@ -202,7 +214,12 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 
 	return 0;
 }
+// }}}
 
+pcap_t *pcap_handle = NULL;  // Handle for PCAP library
+char *userin = NULL;
+
+// {{{ cleanup()
 /*
  * cleanup()
  *
@@ -212,9 +229,6 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
  * detected.
  */
 
-pcap_t *pcap_handle = NULL;  // Handle for PCAP library
-char *userin = NULL;
-
 void cleanup(void) {
 	if (userin)
 		free(userin);
@@ -222,17 +236,83 @@ void cleanup(void) {
 	if (pcap_handle)
 		pcap_close(pcap_handle);
 }
+// }}}
+
+// {{{ check_response()
+/*
+ * check_response()
+ *
+ *   Returns: 1 if packet was our response, 0 otherwise
+ *
+ * Process a received packet and check if it is for us.
+ * If it is display the result.
+ *
+ * setsrcipmac() must be called once before using this function
+ * to set the ip and mac.
+ *
+ */
+int check_response(struct pcap_pkthdr *packet_hdr, const u_char *packet_data) {
+
+	uint32_t len;
+	struct ether_header *ethhdr;
+	char *strp;
+	struct ether_arp *ether_arp;
+	uint16_t _arp_op;
+	uint16_t ether_type;
+
+	len = packet_hdr->len;
+
+	if (len < sizeof(struct ether_header)) {
+		// too small to have an Ethernet header, not our response
+		return 0;
+	}
+
+	ethhdr = (struct ether_header*) packet_data;
+
+	// destination mac address
+	strp = ether_ntoa((struct ether_addr*) &ethhdr->ether_dhost);
+	if (0 != strcmp(strp, src_mac))
+		return 0;  // not addressed to our device
+
+	ether_type = ntohs(ethhdr->ether_type);
+	if (ether_type == ETHERTYPE_ARP) {
+		
+		ether_arp = (struct ether_arp*) (packet_data + ETHER_HDR_LEN);
+
+		_arp_op = ntohs(ether_arp->arp_op);
+
+		if (_arp_op != ARPOP_REPLY)
+			return 0;  // only interested in replies, not ours
+
+		strp = ether_ntoa((struct ether_addr*) &ether_arp->arp_sha);
+		printf("MAC: %s\n", strp);
+
+		return 1;  // got our response
+	}
+
+	return 0;  // default, not our response
+}
+// }}}
+
+void resp_timeout_handler() {
+	// tell pcap_next_ex to break
+	pcap_breakloop(pcap_handle);
+}
 
 int main(int argc, char *argv[]) {
 
 	char pcap_buff[PCAP_ERRBUF_SIZE];       // Error buffer used by pcap
-	//pcap_t *pcap_handle = NULL;             // Handle for PCAP library
 	char *dev_name = NULL;                  // Device name for live capture
 
-	//char *userin = NULL;
 	size_t userin_len = 0;
 
 	ssize_t n;
+
+	int ret;
+	struct pcap_pkthdr *packet_hdr = NULL;
+	const u_char *packet_data = NULL;
+
+	int got_response;
 
 	// set atexit() cleanup function
 	if (atexit(cleanup) != 0) {
@@ -291,17 +371,28 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 
-		/*
-		// TODO
+		// wait for a response
+		got_response = 0;
+
+		alarm(RESP_TIMEOUT);
+		signal(SIGALRM, resp_timeout_handler);
+
 		while (1) {
 			// receive some data
 			ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
+			if (ret < 0)
+				break;  // timeout or error
 
-			// filter packet, is it for us?
-
-			// display response
+			// if the response is ours, display the result and break.
+			if (check_response(packet_hdr, packet_data)) {
+				got_response = 1;
+				break;
+			}
 		}
-		*/
+		alarm(0);  // disable timeout
+		if (!got_response) {
+			printf("MAC: Lookup failed, gave up.\n");		
+		}
 	}
 
 	return 0;
