@@ -406,7 +406,7 @@ int main(int argc, char *argv[]) {
 		}
 		alarm(0);  // disable timeout
 		if (!got_response) {
-			printf("MAC: Lookup failed, gave up.\n");		
+			printf("MAC: Lookup failed\n");		
 		}
 	}
 
