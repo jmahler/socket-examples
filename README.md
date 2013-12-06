@@ -19,6 +19,8 @@ INDEX
 
  * arp_resolver - resolves a MAC address for a IP address using ARP
 
+ * arp_responder - respond to ARP requests with fake entries
+
   [libpcap]: http://www.tcpdump.org
 
 COPYRIGHT

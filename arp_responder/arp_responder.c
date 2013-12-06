@@ -1,17 +1,18 @@
 /*
- * arp_resolver.c
+ * arp_responder.c
  *
- * Given an IP address as input and it will resolve the MAC address using ARP.
+ * Given a file of IP address and MAC addresses
  *
- *   $ sudo ./arp_resolver wlan0
- *   Enter next IP address: 192.168.2.1
- *   MAC: AB:CD:EF:00:12:34
- *   Enter next IP address: 8.8.8.8
- *   MAC: Lookup failed
- *   Enter next IP address:
+ *   192.168.99.44   C0:04:AB:43:22:FF
+ *   192.168.99.18   D4:DE:AD:BE:EF:FF
+ *
+ * this program will respond to any requests for these entries.
+ *
+ *   $ sudo ./arp_responder eth0 addresses.txt
+ *   ^C (quit)
  *   $
  *
- * The libpcap [www.tcpdump.org] library is used to read the packets.
+ * The libpcap [www.tcpdump.org] library is used to read and send packets.
  *
  * Author:
  *
@@ -45,22 +46,26 @@
 // ARP protocol address length (from RFC 826)
 #define ARP_PROLEN 4
 
-// Time after which to give up waiting for a response.
-#define RESP_TIMEOUT 1  // sec
-
-// {{{ setsrcipmac()
+// {{{ get_srcipmac()
 /*
- * setsrcipmac()
+ * get_srcipmac()
  *
  *   Returns: 0 on success, < 0 on error
  *
- * Sets the global variables for our source ip (src_ip)
- * and mac address (src_mac).
+ * Get the local ip address and mac for the given interface.
+ * 'src_mac' and 'src_ip' will be set by get_srcipmac.
+ * They should have enough room allocated as shown below.
+ *
+ *  char src_mac[INET6_ADDRSTRLEN];	// "00:1c:34:92:11:22"
+ *  char src_ip[INET6_ADDRSTRLEN];	// "192.168.1.1"
+ *
+ *  n = get_srcipmac("eth0", src_ip, src_mac);
+ *  if (n < 0)
+ *  	exit(1);  // ERROR
  */
-char src_mac[INET6_ADDRSTRLEN];	// "00:1c:34:92:11:22"
-char src_ip[INET6_ADDRSTRLEN];	// "192.168.1.1"
 
-int setsrcipmac(char *dev_str) {
+int get_srcipmac(char *dev_str, char *src_ip, char *src_mac)
+{
 	int err;
 	struct ifaddrs *ifap, *p;
 	struct sockaddr *sa;
@@ -90,7 +95,7 @@ int setsrcipmac(char *dev_str) {
 			sin = (struct sockaddr_in *) sa;
 
 			if (NULL == inet_ntop(sin->sin_family, &(sin->sin_addr),
-											src_ip, sizeof(src_ip))) {
+								src_ip, INET6_ADDRSTRLEN)) {
 				perror("inet_ntop");
 				return -2;
 			}
@@ -124,22 +129,20 @@ int setsrcipmac(char *dev_str) {
 }
 // }}}
 
-// {{{ arp_request()
+// {{{ arp_reply()
 /*
- * arp_request()
+ * arp_reply()
  *
- *   Returns: 0 on success, < 0 on error
+ *   Returns: 0 on success, negative on error
  *
- * Inject an arp request to the address given.
+ * Inject an arp reply to the address given.
  *
- * setsrcipmac() must be called once before using this function
- * to set the ip and mac.
- *
- *   setsrcipmac();
- *   arp_inject(pcap_handle, "192.168.2.1");
+ *   arp_reply(pcap_handle, src_ip, src_mac, dst_ip, dst_mac);
+ *   arp_reply(pcap_handle, "192.168.2.1", "00:11:22:33:44:55", ...);
  */
-int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
-
+int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
+									char *dst_ip, char *dst_mac)
+{
 	const size_t sizeof_buf = ETHER_HDR_LEN + sizeof(struct ether_arp);
 	u_char packet_data[sizeof_buf];
 	struct ether_header *ethhdr = NULL;
@@ -154,7 +157,7 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 	//
 
 	// destination MAC address
-	ethaddr = ether_aton(MAC_BCAST);  // broadcast
+	ethaddr = ether_aton(dst_mac);
 	if (NULL == ethaddr) {
 		fprintf(stderr, "Invalid Ethernet destination address.\n");
 		return -1;
@@ -189,7 +192,7 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 	ether_arp->arp_pln = ARP_PROLEN;
 
 	// operation
-	ether_arp->arp_op = htons(ARPOP_REQUEST);
+	ether_arp->arp_op = htons(ARPOP_REPLY);
 
 	// sender (our) hardware (MAC) address
 	ethaddr = ether_aton(src_mac);
@@ -203,7 +206,7 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 	inet_pton(AF_INET, src_ip, &ether_arp->arp_spa);
 
 	// target hardware (MAC) address
-	ethaddr = ether_aton(MAC_ANY);
+	ethaddr = ether_aton(dst_mac);
 	if (NULL == ethaddr) {
 		fprintf(stderr, "Invalid target hardware address.\n");
 		return -4;
@@ -211,7 +214,7 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 	memcpy(&ether_arp->arp_tha, ethaddr, ETH_ALEN);
 
 	// target protocol (IP) address
-	inet_pton(AF_INET, ipaddr_str, &ether_arp->arp_tpa);
+	inet_pton(AF_INET, dst_ip, &ether_arp->arp_tpa);
 
 	// send the ARP packet
 	pcap_inject(pcap_handle, (void *) packet_data, sizeof_buf);
@@ -221,7 +224,6 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 // }}}
 
 pcap_t *pcap_handle = NULL;  // Handle for PCAP library
-char   *userin 		= NULL;  // user input from stdin
 
 // {{{ cleanup()
 /*
@@ -234,49 +236,42 @@ char   *userin 		= NULL;  // user input from stdin
  */
 
 void cleanup(void) {
-	if (userin)
-		free(userin);
-
 	if (pcap_handle)
 		pcap_close(pcap_handle);
 }
 // }}}
 
-// {{{ check_response()
+// {{{ is_arp_request()
 /*
- * check_response()
+ * is_arp_request()
  *
- *   Returns: 1 if packet was our response, 0 otherwise
+ *   Returns: 1 if an arp request, 0 otherwise
  *
- * Process a received packet and check if it is for us.
- * If it is display the result.
- *
- * setsrcipmac() must be called once before using this function
- * to set the ip and mac.
+ * Process a received packet and check if it is an ARP request.
  *
  */
-int check_response(struct pcap_pkthdr *packet_hdr, const u_char *packet_data) {
-
+int is_arp_request(struct pcap_pkthdr *packet_hdr,
+					const u_char *packet_data,
+					char *src_ip, char *src_mac,
+					char *rqs_ip)
+{
 	uint32_t len;
 	struct ether_header *ethhdr;
-	char *strp;
 	struct ether_arp *ether_arp;
 	uint16_t _arp_op;
 	uint16_t ether_type;
+	char *strp;
+	struct in_addr *arp_spa = NULL;
+	struct in_addr *arp_tpa = NULL;
 
 	len = packet_hdr->len;
 
 	if (len < sizeof(struct ether_header)) {
-		// too small to have an Ethernet header, not our response
+		// too small to have an Ethernet header, ignore
 		return 0;
 	}
 
 	ethhdr = (struct ether_header*) packet_data;
-
-	// destination mac address
-	strp = ether_ntoa((struct ether_addr*) &ethhdr->ether_dhost);
-	if (0 != strcmp(strp, src_mac))
-		return 0;  // not addressed to our device
 
 	ether_type = ntohs(ethhdr->ether_type);
 	if (ether_type == ETHERTYPE_ARP) {
@@ -285,31 +280,27 @@ int check_response(struct pcap_pkthdr *packet_hdr, const u_char *packet_data) {
 
 		_arp_op = ntohs(ether_arp->arp_op);
 
-		if (_arp_op != ARPOP_REPLY)
-			return 0;  // only interested in replies, not ours
+		if (_arp_op != ARPOP_REQUEST)
+			return 0;  // not a request
 
+		// sender hardware (MAC) address
 		strp = ether_ntoa((struct ether_addr*) &ether_arp->arp_sha);
-		printf("MAC: %s\n", strp);
+		strcpy(src_mac, strp);
 
-		return 1;  // got our response
+		// sender protocol (IP) address
+		arp_spa = (struct in_addr*) ether_arp->arp_spa;
+		strp = inet_ntoa(*arp_spa);
+		strcpy(src_ip, strp);
+
+		// target protocol (IP) address
+		arp_tpa = (struct in_addr*) ether_arp->arp_tpa;
+		strp = inet_ntoa(*arp_tpa);
+		strcpy(rqs_ip, strp);
+
+		return 1;  // it was a request
 	}
 
-	return 0;  // default, not our response
-}
-// }}}
-
-// {{{ resp_timeout_handler()
-/*
- * resp_timeout_handler()
- *
- * pcap_next_ex() will block waiting for packets.
- * Using this handler in conjuction with signal/alarm
- * it will abort pcap_next_ex() when called.
- *
- */
-void resp_timeout_handler() {
-	// tell pcap_next_ex to break
-	pcap_breakloop(pcap_handle);
+	return 0;  // default, not a request
 }
 // }}}
 
@@ -317,8 +308,7 @@ int main(int argc, char *argv[]) {
 
 	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
 	char *dev_name = NULL;				// Device name for live capture
-
-	size_t userin_len = 0;
+	//char *addr_file = NULL;				// File with addresses
 
 	ssize_t n;
 
@@ -326,7 +316,12 @@ int main(int argc, char *argv[]) {
 	struct pcap_pkthdr *packet_hdr = NULL;
 	const u_char *packet_data = NULL;
 
-	char got_response;
+	char src_mac[INET6_ADDRSTRLEN];
+	char src_ip[INET6_ADDRSTRLEN];
+	char dst_mac[INET6_ADDRSTRLEN];
+	char dst_ip[INET6_ADDRSTRLEN];
+	char rqs_ip[INET6_ADDRSTRLEN];
+
 
 	// set atexit() cleanup function
 	if (atexit(cleanup) != 0) {
@@ -336,12 +331,12 @@ int main(int argc, char *argv[]) {
 	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
 
 	// Check command line arguments
-	if (argc != 2) {
+	if (argc != 3) {
 		fprintf(stderr, "Usage: %s <net device>\n", argv[0]);
 		return -1;
-	} else {
-		dev_name = argv[1];
 	}
+	dev_name  = argv[1];
+	//addr_file = argv[2];
 
 	// open device
 	pcap_handle = pcap_open_live(dev_name, BUFSIZ, 1, 0, pcap_buff);
@@ -350,67 +345,29 @@ int main(int argc, char *argv[]) {
 												dev_name, pcap_buff);
 		return -1;
 	}
-	printf("Capturing on interface '%s'\n", dev_name);
 
-	n = setsrcipmac(dev_name);
+	n = get_srcipmac(dev_name, src_ip, src_mac);
 	if (n < 0) {
-		fprintf(stderr, "setsrcipmac() failed\n");
+		fprintf(stderr, "get_srcipmac() failed (%li)\n", n);
 		exit(EXIT_FAILURE);
 	}
 
+	// look for ARP requests, send replies
 	while (1) {
-
-		// read user input
-		printf("Enter next IP address: ");
-		// getline malloc's userin, so free it each time
-		if (userin)
-			free(userin);
-		userin_len = 0;
-		n = getline(&userin, &userin_len, stdin);
-		if (n < 0) {
-			perror("getline failed");
-			exit(EXIT_FAILURE);
-		}
-		// remove new line
-		userin[n-1] = '\0';
-
-		// quit if empty line entered
-		if (0 == strcmp("", userin))
-			break;
-
-		// send an ARP request
-		n = arp_request(pcap_handle, userin);
-		if (n < 0) {
-			printf("ARP request failed\n");
-			continue;
-		}
-
-		// wait for a response
-		got_response = 0;
-
-		// engage the timeout, to quit if there is no response
-		alarm(RESP_TIMEOUT);
-		if (SIG_ERR == signal(SIGALRM, resp_timeout_handler)) {
-			perror("signal(SIGALRM) failed");
-			exit(EXIT_FAILURE);
-		}
-
-		// look for a response
+		// look for ARP requests
 		while (1) {
 			// receive some data
 			ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
 			if (ret < 0)
 				break;  // timeout or error
 
-			// if the response is ours, display the result and break.
-			if (check_response(packet_hdr, packet_data)) {
-				got_response = 1;
-				break;
+			if (is_arp_request(packet_hdr, packet_data, dst_ip, dst_mac, rqs_ip)) {
+				printf("got a request %s, %s, %s\n", rqs_ip, dst_ip, dst_mac);
+				//if (ip_lookup(dest_ip, dest_mac)) {
+				// TODO - implement lookup
+					arp_reply(pcap_handle, rqs_ip, "B8:27:EB:BB:17:15", dst_ip, dst_mac);
+				//}
 			}
-		}
-		alarm(0);  // disable timeout
-		if (!got_response) {
-			printf("MAC: Lookup failed\n");		
 		}
 	}
 
