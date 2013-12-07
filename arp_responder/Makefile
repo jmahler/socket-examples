@@ -1,12 +1,17 @@
 
+
 ARGV = -Wall -Wextra
 
-all: arp_responder
+all: arp_responder arptable.o
 
-arp_responder: arp_responder.c
-	gcc $(ARGV) $< -o $@ -lpcap
+arp_responder: arp_responder.c arptable.o
+	gcc $(ARGV) $< arptable.o -o $@ -lpcap
 	sudo setcap CAP_NET_RAW+eip arp_responder
+
+arptable.o: arptable.c arptable.h
+	gcc -c $(ARGV) $< -o $@ -lpcap
 
 clean:
 	-rm -f arp_responder
+	-rm -f *.o
 

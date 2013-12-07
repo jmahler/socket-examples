@@ -12,6 +12,11 @@
  *   ^C (quit)
  *   $
  *
+ * On an wired network if this program is running on machine A,
+ * and then one of the entries is pinged by machine B, a complete
+ * entry should appear for that address in the arp table (arp -n)
+ * of machine B.
+ *
  * The libpcap [www.tcpdump.org] library is used to read and send packets.
  *
  * Author:
@@ -41,10 +46,14 @@
 
 #include <pcap/pcap.h>
 
+#include "arptable.h"
+
 #define MAC_ANY "00:00:00:00:00:00"
 #define MAC_BCAST "FF:FF:FF:FF:FF:FF"
 // ARP protocol address length (from RFC 826)
 #define ARP_PROLEN 4
+
+#define DEBUG 0
 
 // {{{ get_srcipmac()
 /*
@@ -223,8 +232,6 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
 }
 // }}}
 
-pcap_t *pcap_handle = NULL;  // Handle for PCAP library
-
 // {{{ cleanup()
 /*
  * cleanup()
@@ -235,9 +242,17 @@ pcap_t *pcap_handle = NULL;  // Handle for PCAP library
  * detected.
  */
 
+pcap_t *pcap_handle = NULL;  // Handle for PCAP library
+struct arptable arptbl;
+
 void cleanup(void) {
+	if (DEBUG)
+		printf("cleanup()\n");
+
 	if (pcap_handle)
 		pcap_close(pcap_handle);
+
+	free_arptable(&arptbl);
 }
 // }}}
 
@@ -308,7 +323,7 @@ int main(int argc, char *argv[]) {
 
 	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
 	char *dev_name = NULL;				// Device name for live capture
-	//char *addr_file = NULL;				// File with addresses
+	char *addr_file = NULL;				// File with addresses
 
 	ssize_t n;
 
@@ -321,7 +336,6 @@ int main(int argc, char *argv[]) {
 	char dst_mac[INET6_ADDRSTRLEN];
 	char dst_ip[INET6_ADDRSTRLEN];
 	char rqs_ip[INET6_ADDRSTRLEN];
-
 
 	// set atexit() cleanup function
 	if (atexit(cleanup) != 0) {
@@ -336,37 +350,45 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	dev_name  = argv[1];
-	//addr_file = argv[2];
+	addr_file = argv[2];
+
+	// load the addresses
+	n = load_addrs(&arptbl, addr_file);
+	if (n < 0) {
+		fprintf(stderr, "load_addrs() failed (%zd)\n", n);
+		exit(EXIT_FAILURE);
+	}
 
 	// open device
 	pcap_handle = pcap_open_live(dev_name, BUFSIZ, 1, 0, pcap_buff);
 	if (pcap_handle == NULL) {
 		fprintf(stderr, "Error opening capture device %s: %s\n",
 												dev_name, pcap_buff);
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 
 	n = get_srcipmac(dev_name, src_ip, src_mac);
 	if (n < 0) {
-		fprintf(stderr, "get_srcipmac() failed (%li)\n", n);
+		fprintf(stderr, "get_srcipmac() failed (%zd)\n", n);
 		exit(EXIT_FAILURE);
 	}
 
 	// look for ARP requests, send replies
+	// look for ARP requests
 	while (1) {
-		// look for ARP requests
-		while (1) {
-			// receive some data
-			ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
-			if (ret < 0)
-				break;  // timeout or error
+		// receive some data
+		ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
+		if (ret < 0)
+			continue;  // timeout or error
 
-			if (is_arp_request(packet_hdr, packet_data, dst_ip, dst_mac, rqs_ip)) {
-				printf("got a request %s, %s, %s\n", rqs_ip, dst_ip, dst_mac);
-				//if (ip_lookup(dest_ip, dest_mac)) {
-				// TODO - implement lookup
-					arp_reply(pcap_handle, rqs_ip, "B8:27:EB:BB:17:15", dst_ip, dst_mac);
-				//}
+		if (is_arp_request(packet_hdr, packet_data, dst_ip,
+													dst_mac, rqs_ip)) {
+			if (DEBUG)
+				printf("request: %s (%s) for %s\n", dst_ip, dst_mac, rqs_ip);
+			if ((mac_lookup(&arptbl, rqs_ip, src_mac))) {
+				if (DEBUG)
+					printf("reply sent\n");
+				arp_reply(pcap_handle, rqs_ip, src_mac, dst_ip, dst_mac);
 			}
 		}
 	}
