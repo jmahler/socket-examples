@@ -7,6 +7,8 @@
  *   192.168.99.18   D4:DE:AD:BE:EF:FF
  *
  * this program will respond to any requests for these entries.
+ * It, in effect, spoofs these addresses since they don't belong
+ * to the current machine.
  *
  *   $ sudo ./arp_responder eth0 addresses.txt
  *   ^C (quit)
@@ -243,7 +245,7 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
  */
 
 pcap_t *pcap_handle = NULL;  // Handle for PCAP library
-struct arptable arptbl;
+struct arptable *arptbl = NULL;
 
 void cleanup(void) {
 	if (DEBUG)
@@ -252,7 +254,7 @@ void cleanup(void) {
 	if (pcap_handle)
 		pcap_close(pcap_handle);
 
-	free_arptable(&arptbl);
+	free_arptable(arptbl);
 }
 // }}}
 
@@ -374,7 +376,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	// look for ARP requests, send replies
-	// look for ARP requests
 	while (1) {
 		// receive some data
 		ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
@@ -385,7 +386,7 @@ int main(int argc, char *argv[]) {
 													dst_mac, rqs_ip)) {
 			if (DEBUG)
 				printf("request: %s (%s) for %s\n", dst_ip, dst_mac, rqs_ip);
-			if ((mac_lookup(&arptbl, rqs_ip, src_mac))) {
+			if ((mac_lookup(arptbl, rqs_ip, src_mac))) {
 				if (DEBUG)
 					printf("reply sent\n");
 				arp_reply(pcap_handle, rqs_ip, src_mac, dst_ip, dst_mac);

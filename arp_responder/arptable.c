@@ -1,7 +1,19 @@
+/*
+ * arptable.c
+ *
+ * Refer to arptable.h for a description of the functions
+ * defined here.
+ *
+ * Author:
+ *
+ *  Jeremiah Mahler <jmmahler@gmail.com>
+ *
+ *  CSU Chico, EECE 555, Fall 2013
+ */
 
 #include "arptable.h"
 
-int load_addrs(struct arptable *atbl, char *file) {
+int load_addrs(struct arptable **root, char *file) {
 
 	FILE *fd = NULL;
 	char *line = NULL;
@@ -9,9 +21,10 @@ int load_addrs(struct arptable *atbl, char *file) {
 	ssize_t n = 0;
 	char ip[INET6_ADDRSTRLEN];
 	char mac[INET6_ADDRSTRLEN];
-	struct arptable_entry *cur_p;
-	struct arptable_entry *new_p;
+	struct arptable *cur_p;
+	struct arptable *new_p;
 	int first;
+	int ret = 0;
 
 	// It is assumed that atbl (struct arptable)
 	// has not defined any entries.
@@ -24,51 +37,54 @@ int load_addrs(struct arptable *atbl, char *file) {
 
 	first = 1;
 	while (1) {
-		line = NULL;
 		n = getline(&line, &len, fd);
-
 		if (n < 0) {
 			// eof
-			if (0 == errno)
+			if (0 == errno) {
+				ret = 0;  // normal exit
 				break;
+			}
 
 			// some error
 			perror("getline failed");
-			return -2;
+			ret = -2;
+			break;
 		}
 		len = n;
-		if (0 == len)
+		if (0 == len) {
 			continue;
+		}
 
 		// remove newline
 		line[len-1] = '\0';
 
-		// get the ip address, then the mac
+		// get the ip address
 		n = sscanf(line, "%s", ip);
 		if (n < 0) {
 			perror("sscanf ip failed");
-			free(line);
-			return -3;
+			ret = -3;
+			break;
 		}
 		n = strlen(ip);
-		if (0 == n)
+		if (0 == n) {
 			continue;
-
+		}
+		// get the mac
 		n = sscanf(&line[n+1], "%s", mac);
 		if (n < 0) {
 			perror("sscanf mac failed");
-			free(line);
-			return -4;
+			ret = -4;
+			break;
 		}
-		free(line);
+
+		// invalid line?
 		if (0 == n) {
 			printf("skipping line with missing mac\n");
 			continue;
 		}
 
-		// got an ip and mac
+		// found an ip and mac
 		// add a new entry in to the linked list
-
 		new_p = malloc(sizeof(*new_p));
 		strcpy(new_p->ip, ip);
 		strcpy(new_p->mac, mac);
@@ -76,46 +92,43 @@ int load_addrs(struct arptable *atbl, char *file) {
 
 		if (first) {
 			first = 0;
-			atbl->root = new_p;
+			(*root) = new_p;
 		} else {
 			cur_p->next = new_p;
 		}
 		cur_p = new_p;
 	}
 
-	return 0;  // success
+	if (line)
+		free(line);
+
+	fclose(fd);
+
+	return ret;  // success
 }
 
-int mac_lookup(struct arptable *atbl, char *ip, char *mac) {
+int mac_lookup(struct arptable *p, char *ip, char *mac)
+{
+	if (NULL == p)
+		return 0;  // reached end, no entry found
 
-	struct arptable_entry *p;
-
-	for (p = atbl->root; p != NULL; p = p->next) {
-		if (0 == strcmp(ip, p->ip)) {
-			// copy it in to our static buffer
-			// and return the pointer.
-			strcpy(mac, p->mac);
-			return 1;  // found an entry
-		}
+	if (0 == strcmp(ip, p->ip)) {
+		strcpy(mac, p->mac);
+		return 1;  // found an entry
 	}
 
-	return 0;  // no entry found
+	return mac_lookup(p->next, ip, mac);  // continue searching
 }
 
-void free_arptable(struct arptable *atbl) {
+void free_arptable(struct arptable *p)
+{
+	struct arptable *pn;
 
-	struct arptable_entry *p;
-	struct arptable_entry *px;
+	if (NULL == p)
+		return;  // found the end
 
-	p = atbl->root;
+	pn = p->next;
+	free(p);
 
-	// Free all the entries in the linked list.
-	while (1) {
-		if (NULL == p)
-			break;
-
-		px = p;
-		p = p->next;
-		free(px);
-	}
+	free_arptable(pn);
 }

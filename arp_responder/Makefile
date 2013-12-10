@@ -1,8 +1,7 @@
 
-
 ARGV = -Wall -Wextra
 
-all: arp_responder arptable.o
+all: arp_responder
 
 arp_responder: arp_responder.c arptable.o
 	gcc $(ARGV) $< arptable.o -o $@ -lpcap
