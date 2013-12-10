@@ -4,7 +4,7 @@
  * Will monitor live network traffic or process a .pcap dump
  * and display basic header information about the packets.
  *
- *   $ sudo ./packets
+ *   $ sudo ./packets eth0
  *
  *   48:5b:39:5b:6b:87 -> 1:80:c2:0:0:0 [len:46] 
  *   48:5b:39:5b:6b:87 -> 1:80:c2:0:0:0 [len:46] 
@@ -52,9 +52,7 @@ int main(int argc, char *argv[]) {
 	struct pcap_pkthdr *packet_hdr = NULL;  // Packet header from PCAP
 	const u_char *packet_data = NULL;       // Packet data from PCAP
 	int ret = 0;                            // Return value from library calls
-	char *trace_file = NULL;                // Trace file to process
-	char *dev_name = NULL;                  // Device name for live capture
-	char use_file = 0;                      // Flag to use file or live capture
+	char *file_or_dev = NULL;
 	uint32_t len;
 
 	struct ether_header *ethhdr = NULL;
@@ -75,42 +73,27 @@ int main(int argc, char *argv[]) {
 	uint16_t *vlan_id;
 
 	// Check command line arguments
-	if (argc > 2) {
-		fprintf(stderr, "Usage: %s trace_file\n", argv[0]);
+	if (argc != 2) {
+		fprintf(stderr, "Usage: %s <file | device>\n", argv[0]);
 		return -1;
-	} else if (argc > 1) {
-		use_file = 1;
-		trace_file = argv[1];
 	} else {
-		use_file = 0;
+		file_or_dev = argv[1];
 	}
 
-	if (use_file) {
-		// Open the trace file
-		pcap_handle = pcap_open_offline(trace_file, pcap_buff);
-		if( pcap_handle == NULL ){
-			fprintf(stderr, "Error opening trace file \"%s\": %s\n",
-													trace_file, pcap_buff);
+	// Try to open as a file and if that doesn't work
+	// try to open as a device.
+	pcap_handle = pcap_open_offline(file_or_dev, pcap_buff);
+	if (NULL == pcap_handle) {
+		pcap_handle = pcap_open_live(file_or_dev, BUFSIZ, 1, 0, pcap_buff);
+		if (NULL == pcap_handle) {
+			fprintf(stderr, "Error opening device (or file?) %s: %s\n",
+												file_or_dev, pcap_buff);
 			return -1;
+		} else {
+			printf("Capturing on interface '%s'\n", file_or_dev);
 		}
-		printf("Processing file '%s'\n", trace_file);
 	} else {
-		// Lookup and open a device
-
-		dev_name = pcap_lookupdev(pcap_buff);
-		if (dev_name == NULL) {
-			fprintf(stderr, "Error finding default capture device: %s\n",
-													pcap_buff);
-			return -1;
-		}
-
-		pcap_handle = pcap_open_live(dev_name, BUFSIZ, 1, 0, pcap_buff);
-		if (pcap_handle == NULL) {
-			fprintf(stderr, "Error opening capture device %s: %s\n",
-													dev_name, pcap_buff);
-			return -1;
-		}
-		printf("Capturing on interface '%s'\n", dev_name);
+		printf("Processing file '%s'\n", file_or_dev);
 	}
 
 	while (1) {
@@ -125,6 +108,9 @@ int main(int argc, char *argv[]) {
 			pcap_perror(pcap_handle, "Error processing packet:");
 			pcap_close(pcap_handle);
 			return -1;
+		} else if (ret == 0) {
+			// live capture timeout
+			continue;
 		} else if (ret != 1) {
 			// Unexpected return values; other values shouldn't happen
 			// when reading trace files

@@ -10,7 +10,7 @@ DESCRIPTION
 Will monitor live network traffic or process a .pcap dump
 and display basic header information about the packets.
 
-    $ sudo ./packets
+    $ sudo ./packets wlan0
     Capturing on interface 'wlan0'
     48:5b:39:5b:6b:87 -> 1:80:c2:0:0:0 [len:46] 
     48:5b:39:5b:6b:87 -> 1:80:c2:0:0:0 [len:46] 
