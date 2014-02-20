@@ -41,7 +41,7 @@ void cleanup(void) {
 }
 
 int main(int argc, char* argv[]) {
-	struct addrinfo hints;
+	struct addrinfo hints, *p;
 	int n;
 	char *host;
 	char *port;
@@ -74,10 +74,18 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (sockfd < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
+	// loop through addresses, use first one that works
+	for (p = res; p != NULL; p = p->ai_next) {
+		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if (-1 == sockfd) {
+			perror("socket");
+			continue;
+		}
+
+		break;
+	}
+	if (NULL == p) {
+
 	}
 
 	while (fgets(buf, MAXLINE, stdin)) {
