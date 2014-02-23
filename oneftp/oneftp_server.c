@@ -6,27 +6,45 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define MAXBUF 4096
 
-#define perr_quit(type, msg) \
-	perror(msg); \
-	err = 1; \
-	goto type;
+struct addrinfo *res = NULL;
+int outfd = 0;
+int act_sockfd = 0;
+int sockfd = 0;
+
+void cleanup() {
+	if (act_sockfd) {
+		close(act_sockfd);
+	}
+
+	if (sockfd) {
+		close(sockfd);
+	}
+
+	if (res) {
+		freeaddrinfo(res);
+	}
+
+	if (outfd) {
+		close(outfd);
+	}
+}
+
+#define cleanup_exit()	\
+	cleanup();			\
+	exit(EXIT_FAILURE);
 
 int main(int argc, char* argv[]) {
 	char *file;
 	char *port;
-	int outfd;
 	int n;
 	struct addrinfo hints;
-	struct addrinfo *res;
-	int sockfd;
-	int act_sockfd;
 	uint8_t buf[MAXBUF];
-	int err = 0;
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <out file>\n", argv[0]);
@@ -40,7 +58,8 @@ int main(int argc, char* argv[]) {
 								| S_IRGRP | S_IWGRP
 								| S_IROTH);
 	if (-1 == outfd) {
-		perr_quit(err_null, "unable to open file");
+		perror("unable to open file");
+		cleanup_exit();
 	}
 
 	memset(&hints, 0, sizeof(hints));
@@ -51,51 +70,47 @@ int main(int argc, char* argv[]) {
 
 	if ( (n = getaddrinfo(NULL, port, &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
-		err = 1;
-		goto err_file;
+		cleanup_exit();
 	}
 
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (-1 == sockfd) {
-		perr_quit(err_getaddrinfo, "socket");
+		perror("socket");
+		cleanup_exit();
 	}
 
 	n = bind(sockfd, res->ai_addr, res->ai_addrlen);
 	if (-1 == n) {
-		perr_quit(err_sock, "bind");
+		perror("bind");
+		cleanup_exit();
 	}
 
 	// listen for a single connection
 	n = listen(sockfd, 0);
 	if (-1 == n) {
-		perr_quit(err_sock, "listen");
+		perror("listen");
+		cleanup_exit();
 	}
 
 	// only accept once
 	act_sockfd = accept(sockfd, res->ai_addr, &(res->ai_addrlen));
 	if (-1 == act_sockfd) {
-		perr_quit(err_sock, "accept");
+		perror("accept");
+		cleanup_exit();
 	}
 
 	while ( (n = recv(act_sockfd, buf, sizeof(buf), 0))) {
 		if (-1 == n) {
 			if (EINTR == errno)
 				continue;
-			perr_quit(err_act_sock, "recv");
+			perror("recv");
+			cleanup_exit();
 		}
 
 		write(outfd, buf, n);
 	}
 
-err_act_sock:
-	close(act_sockfd);
-err_sock:
-	close(sockfd);
-err_getaddrinfo:
-	freeaddrinfo(res);
-err_file:
-	close(outfd);
-err_null:
+	cleanup();
 
-	return err;
+	return 0;
 }

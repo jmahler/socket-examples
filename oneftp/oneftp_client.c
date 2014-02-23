@@ -5,29 +5,44 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define MAXBUF 4096
 
-#define perr_quit(type, msg) \
-	perror(msg); \
-	err = 1; \
-	goto type;
+struct addrinfo *res = NULL;
+int sockfd = 0;
+int infd = 0;
+
+void cleanup() {
+
+	if (sockfd) {
+		close(sockfd);
+	}
+
+	if (res) {
+		freeaddrinfo(res);
+	}
+
+	if (infd) {
+		close(infd);
+	}
+}
+
+#define cleanup_exit()	\
+	cleanup();			\
+	exit(EXIT_FAILURE);
 
 int main(int argc, char* argv[]) {
 	char *server_name;
 	char *file;
 	char *port;
 	struct addrinfo hints;
-	struct addrinfo *res;
 	int n;
-	int sockfd;
-	int infd;
 	ssize_t ret;
 	size_t len;
 	uint8_t buf[MAXBUF];
-	int err = 0;
 
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s <server> <in file>\n", argv[0]);
@@ -39,7 +54,8 @@ int main(int argc, char* argv[]) {
 
 	infd = open(file, O_RDONLY);
 	if (-1 == infd) {
-		perr_quit(err_null, "unable to open file");
+		perror("unable to open file");
+		cleanup_exit();
 	}
 
 	memset(&hints, 0, sizeof(hints));
@@ -48,24 +64,26 @@ int main(int argc, char* argv[]) {
 
 	if ( (n = getaddrinfo(server_name, port, &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
-		err = 1;
-		goto err_file;
+		cleanup_exit();
 	}
 
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (-1 == sockfd) {
-		perr_quit(err_getaddrinfo, "socket");
+		perror("socket");
+		cleanup_exit();
 	}
 
 	if (-1 == connect(sockfd, res->ai_addr, sizeof(*(res->ai_addr)))) {
-		perr_quit(err_sock, "connect");
+		perror("connect");
+		cleanup_exit();
 	}
 
 	while ( (ret = read(infd, buf, MAXBUF))) {
 		if (-1 == ret) {
 			if (errno == EINTR)
 				continue;
-			perr_quit(err_sock, "read");
+			perror("read");
+			cleanup_exit();
 		}
 		len = ret;
 
@@ -74,19 +92,14 @@ int main(int argc, char* argv[]) {
 			if (-1 == ret) {
 				if (errno == EINTR)
 					continue;
-				perr_quit(err_sock, "send");
+				perror("send");
+				cleanup_exit();
 			}
 			len -= ret;
 		}
 	}
 
-err_sock:
-	close(sockfd);
-err_getaddrinfo:
-	freeaddrinfo(res);
-err_file:
-	close(infd);
-err_null:
+	cleanup();
 
-	return err;
+	return 0;
 }

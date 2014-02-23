@@ -22,23 +22,39 @@
 #include <netdb.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #define MAXLINE 2000  // maximum number of input characters
 #define MAXRECV 20	  // maximum size of recieve buffer (char)
 
+int sockfd = 0;
+struct addrinfo *srvinfo = NULL;
+
+void cleanup() {
+
+	if (sockfd) {
+		close(sockfd);
+	}
+		
+	if (srvinfo) {
+		freeaddrinfo(srvinfo);
+	}
+}
+
+#define cleanup_exit()	\
+	cleanup();			\
+	exit(EXIT_FAILURE);
+
 int main(int argc, char* argv[]) {
 	struct addrinfo hints;
-	struct addrinfo *res;
 	int n;
 	size_t sz;
 	char *server_name;
 	char *port;
-	int sockfd;
 	char line[MAXLINE+2];  // +2 for '\n\0'
 	char recv_line[MAXRECV];
 	ssize_t ret;
-	int err = 0;
 
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s <server> <port>\n", argv[0]);
@@ -51,23 +67,20 @@ int main(int argc, char* argv[]) {
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ( (n = getaddrinfo(server_name, port, &hints, &res)) != 0) {
+	if ( (n = getaddrinfo(server_name, port, &hints, &srvinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
-		err = 1;
-		goto err_null;
+		cleanup_exit();
 	}
 
-	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	sockfd = socket(srvinfo->ai_family, srvinfo->ai_socktype, srvinfo->ai_protocol);
 	if (-1 == sockfd) {
 		perror("Unable to create socket.");
-		err = 1;
-		goto err_getaddrinfo;
+		cleanup_exit();
 	}
 
-	if (-1 == connect(sockfd, res->ai_addr, sizeof(*(res->ai_addr)))) {
+	if (-1 == connect(sockfd, srvinfo->ai_addr, sizeof(*(srvinfo->ai_addr)))) {
 		perror("connect");
-		err = 1;
-		goto err_sock;
+		cleanup_exit();
 	}
 
 	while (1) {
@@ -90,15 +103,13 @@ int main(int argc, char* argv[]) {
 		n = send(sockfd, line, sz+1, 0);
 		if (-1 == n) {
 			perror("send");
-			err = 1;
-			goto err_sock;
+			cleanup_exit();
 		}
 
 		ret = recv(sockfd, recv_line, MAXRECV, 0);
 		if (-1 == ret) {
 			perror("recv");
-			err = 1;
-			goto err_sock;
+			cleanup_exit();
 		}
 
 		// enforce null line termination
@@ -107,11 +118,7 @@ int main(int argc, char* argv[]) {
 		printf("Answer: %s\n", recv_line);
 	}
 
-err_sock:
-	close(sockfd);
-err_getaddrinfo:
-	freeaddrinfo(res);
-err_null:
+	cleanup();
 
-	return err;
+	return 0;
 }
