@@ -14,7 +14,7 @@
 #define MAX_RESPONSE_LEN 20
 
 
-int process_calculations(int socket_fd) {
+int process_calculations(int sockfd) {
 
 	char expression[MAX_EXPRESSION_LEN];
 	ssize_t expression_len = 0;
@@ -22,15 +22,15 @@ int process_calculations(int socket_fd) {
 
 	/* Receive the next expression */
 	while (!done) {
-		if ( (expression_len = recv(socket_fd, expression, MAX_EXPRESSION_LEN, 0)) < 0 ) {
+		if ( (expression_len = recv(sockfd, expression, MAX_EXPRESSION_LEN, 0)) < 0 ) {
 			perror("recv");
-			if (close(socket_fd) < 0) {
+			if (close(sockfd) < 0) {
 				perror("close");
 			}
 			exit(-1);
 		} else if (0 == expression_len) {
 			/* Done */
-			if (close(socket_fd) < 0) {
+			if (close(sockfd) < 0) {
 				perror("close"); exit(-1);
 			}
 			done = 1;
@@ -60,9 +60,9 @@ int process_calculations(int socket_fd) {
 				expression[MAX_RESPONSE_LEN-1] = '\0';
 			}
 			while (len > 0) {
-				if ( (sent_len = send(socket_fd, expression, len, 0)) < 0) {
+				if ( (sent_len = send(sockfd, expression, len, 0)) < 0) {
 					perror("send");
-					if (close(socket_fd) < 0) {
+					if (close(sockfd) < 0) {
 						perror("close");
 					}
 					exit(-1);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
 	struct addrinfo hints;
 	struct addrinfo *results;
 	int res = 0;
-	int socket_fd = -1;
+	int sockfd = -1;
 
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s <listen port>\n", argv[0]);
@@ -105,13 +105,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Create the socket */
-	if ( (socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket");
 		return -1;
 	}
 
 	/* Bind the socket */
-	if (bind(socket_fd, results->ai_addr, results->ai_addrlen) < 0) {
+	if (bind(sockfd, results->ai_addr, results->ai_addrlen) < 0) {
 		perror("bind");
 		return -1;
 	}
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
 	results = 0;
 
 	/* Listen to the socket */
-	if (listen(socket_fd, 10) < 0) {
+	if (listen(sockfd, 10) < 0) {
 		perror("listen");
 		return -1;
 	}
@@ -130,23 +130,23 @@ int main(int argc, char *argv[]) {
 		int err;
 
 		/* Accept a new connection */
-		new_conn = accept(socket_fd, NULL, NULL);
+		new_conn = accept(sockfd, NULL, NULL);
 		if (new_conn < 0) {
 			perror("accept");
-			if (close(socket_fd) < 0) { perror("close"); }
+			if (close(sockfd) < 0) { perror("close"); }
 			return -1;
 		}
 
 		/* Process calculations until client quits */
 		err = process_calculations(new_conn);
 		if (err) {
-			if (close(socket_fd) < 0) { perror("close"); }
+			if (close(sockfd) < 0) { perror("close"); }
 			return -1;
 		}
 		close(new_conn);
 	}
 
-	if ( close(socket_fd) < 0) {
+	if ( close(sockfd) < 0) {
 		perror("close");
 		return -1;
 	}
