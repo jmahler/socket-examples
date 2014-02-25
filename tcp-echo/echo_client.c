@@ -2,7 +2,7 @@
 /*
  * echo_client.c
  *
- * Datagram (UDP) echo client for use with the echo server.
+ * Stream (TCP) echo client for use with an echo server.
  *
  *   (terminal 1)
  *   ./echo_server
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family 	= AF_INET;
-	hints.ai_socktype 	= SOCK_DGRAM;
+	hints.ai_socktype 	= SOCK_STREAM;
 
 	if ( (n = getaddrinfo(host, port, &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
@@ -87,6 +87,11 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+	if (-1 == connect(sockfd, res->ai_addr, sizeof(*(res->ai_addr)))) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
 	while (1) {
 
 		/* get line from user ... */
@@ -96,15 +101,13 @@ int main(int argc, char* argv[]) {
 		n = strlen(buf);
 
 		/* Send output */
-		n = sendto(sockfd, buf, n, 0, res->ai_addr, res->ai_addrlen);
-		if (n < 0) {
-			perror("sendto");
+		if ( (n = send(sockfd, buf, n, 0)) < 0) {
+			perror("send");
 			exit(EXIT_FAILURE);
 		}
 
 		/* Receive response */
-		n = recvfrom(sockfd, buf, MAXLINE, 0, NULL, NULL);
-		if (n < 0) {
+		if ( (n = recv(sockfd, buf, MAXLINE, 0)) < 0) {
 			perror("recv");
 			exit(EXIT_FAILURE);
 		}

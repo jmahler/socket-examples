@@ -2,7 +2,7 @@
 /*
  * echo_server.c
  *
- * Datagram (UDP) echo server for use with the echo client.
+ * Stream (TCP) echo server for use with the echo client.
  *
  *   (terminal 1)
  *   ./echo_server
@@ -48,8 +48,6 @@ int main(int argc, char* argv[]) {
 	int n;
 	int sockfd;
 	uint8_t msg[MAXLINE];
-	struct sockaddr cliaddr;
-	socklen_t cliaddr_len;
 
 	if (atexit(cleanup) != 0) {
 		fprintf(stderr, "unable to set exit function\n");
@@ -64,7 +62,7 @@ int main(int argc, char* argv[]) {
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family 	= AF_INET;
-	hints.ai_socktype 	= SOCK_DGRAM;
+	hints.ai_socktype 	= SOCK_STREAM;
 	hints.ai_flags 		= AI_PASSIVE;
 
 	if ( (n = getaddrinfo(NULL, PORT, &hints, &res)) != 0) {
@@ -88,6 +86,12 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 
+		/* Listen to the socket */
+		if (listen(sockfd, 1) < 0) {
+			perror("listen");
+			return -1;
+		}
+
 		break;
 	}
 	if (NULL == p) {
@@ -97,21 +101,35 @@ int main(int argc, char* argv[]) {
 
 	printf("Port: %s\n", PORT);
 
-   	/* Receive input, echo back */
+	/* Accept connections, one at a time */
 	while (1) {
-		cliaddr_len = sizeof(cliaddr);
+		int cli_conn;
 
-		n = recvfrom(sockfd, msg, MAXLINE, 0, &cliaddr, &cliaddr_len);
-		if (n < 0) {
-			perror("recvfrom");
+		/* Accept a new connection */
+		cli_conn = accept(sockfd, NULL, NULL);
+		if (cli_conn < 0) {
+			perror("accept");
 			exit(EXIT_FAILURE);
 		}
 
-		n = sendto(sockfd, msg, n, 0, &cliaddr, cliaddr_len);
-		if (n < 0) {
+    	/* Receive input, echo back */
+		while (1) {
 
-			perror("sendto");
-			exit(EXIT_FAILURE);
+			if ( (n = recv(cli_conn, msg, MAXLINE, 0)) < 0) {
+				perror("recv");
+				exit(EXIT_FAILURE);
+			} else if (0 == n) {
+				if (close(cli_conn) < 0) {
+					perror("close(cli_conn)");
+					exit(EXIT_FAILURE);
+				}
+				break;
+			}
+
+			if ( (n = send(cli_conn, msg, n, 0)) < 0) {
+				perror("send");
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 
