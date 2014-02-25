@@ -25,8 +25,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define MAXLINE 2000  // maximum number of input characters
-#define MAXRECV 20	  // maximum size of recieve buffer (char)
+#define MAXLINE 2000  /* maximum number of input characters */
+#define MAXRECV 20	  /* maximum size of recieve buffer (char) */
 
 int sockfd = 0;
 struct addrinfo *srvinfo = NULL;
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
 	size_t sz;
 	char *server_name;
 	char *port;
-	char line[MAXLINE+2];  // +2 for '\n\0'
+	char line[MAXLINE+2];  /* +2 for '\n\0' */
 	char recv_line[MAXRECV];
 	ssize_t ret;
 
@@ -86,20 +86,20 @@ int main(int argc, char* argv[]) {
 	while (1) {
 		printf("Enter expression:");
 
-		// get up to MAXLINE, +1 for '\n', +1 for fgets added '\0'
+		/* get up to MAXLINE, +1 for '\n', +1 for fgets added '\0' */
 		if (!fgets(line, MAXLINE+2, stdin))
 			continue;
 
 		sz = strlen(line);
 
-		// remove the final new line
+		/* remove the final new line */
 		line[--sz] = '\0';
 
-		// quit on an empty string
+		/* quit on an empty string */
 		if (0 == sz)
 			break;
 	
-		// send the string (including null) to the calc server
+		/* send the string (including null) to the calc server */
 		n = send(sockfd, line, sz+1, 0);
 		if (-1 == n) {
 			perror("send");
@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
 			cleanup_exit();
 		}
 
-		// enforce null line termination
+		/* enforce null line termination */
 		recv_line[ret] = '\0';
 
 		printf("Answer: %s\n", recv_line);
