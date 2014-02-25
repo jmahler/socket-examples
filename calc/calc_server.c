@@ -8,21 +8,73 @@
 #include<unistd.h>
 #include<math.h>
 #include<errno.h>
-#include<pthread.h>
 #include<stdlib.h>
 
 #define MAX_EXPRESSION_LEN 2000
 #define MAX_RESPONSE_LEN 20
 
-/* Per-thread function */
-static void *handle_connection(void *);
 
-/* Per-thread argument */
-struct thread_arg_t {
-	pthread_t thread_id;
-	int socket_fd;			/* Socket for thread to use */
-	char done;				/* Set when thread copies data */
-};
+int process_calculations(int socket_fd) {
+
+	char expression[MAX_EXPRESSION_LEN];
+	ssize_t expression_len = 0;
+	char done = 0;
+
+	/* Receive the next expression */
+	while (!done) {
+		if ( (expression_len = recv(socket_fd, expression, MAX_EXPRESSION_LEN, 0)) < 0 ) {
+			perror("recv");
+			if (close(socket_fd) < 0) {
+				perror("close");
+			}
+			exit(-1);
+		} else if (0 == expression_len) {
+			/* Done */
+			if (close(socket_fd) < 0) {
+				perror("close"); exit(-1);
+			}
+			done = 1;
+		} else {
+			float a, b, answer;
+			char op;
+			int ret = sscanf(expression, "%g%c%g", &a, &op, &b);
+			ssize_t exp_len = strlen(expression) + 1, len, sent_len = 0;
+
+			if ( (ret == EOF) || (ret < 3) ) {
+				answer = NAN;
+			} else {
+				switch(op) {
+					case '*': answer = a * b; break;
+					case '/': answer = a / b; break;
+					case '+': answer = a + b; break;
+					case '-': answer = a - b; break;
+					case '^': answer = pow(a,b); break;
+					default: answer = NAN; break;
+				}
+			}
+			sprintf(expression, "%g", answer);
+			if (exp_len > MAX_RESPONSE_LEN) {
+				len = exp_len;
+			} else {
+				len = MAX_RESPONSE_LEN;
+				expression[MAX_RESPONSE_LEN-1] = '\0';
+			}
+			while (len > 0) {
+				if ( (sent_len = send(socket_fd, expression, len, 0)) < 0) {
+					perror("send");
+					if (close(socket_fd) < 0) {
+						perror("close");
+					}
+					exit(-1);
+				}
+				len -= sent_len;
+			}
+		}
+	}
+
+	return 0;
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -75,8 +127,7 @@ int main(int argc, char *argv[]) {
 	/* Accept and dispatch connections forever */
 	while(1) {
 		int new_conn;
-		struct thread_arg_t thread_arg;
-		pthread_attr_t thread_attr;
+		int err;
 
 		/* Accept a new connection */
 		new_conn = accept(socket_fd, NULL, NULL);
@@ -86,35 +137,13 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 
-		/* Spawn a new thread for the connection */
-		thread_arg.done = 0;
-		thread_arg.socket_fd = new_conn;
-		if ( (errno = pthread_attr_init(&thread_attr)) ) {
-			perror("pthread_attr_init");
+		/* Process calculations until client quits */
+		err = process_calculations(new_conn);
+		if (err) {
 			if (close(socket_fd) < 0) { perror("close"); }
 			return -1;
 		}
-
-		if ( (errno = pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED)) ) {
-			perror("pthread_attr_setdetachedstate");
-			if (close(socket_fd) < 0) { perror("close"); }
-			return -1;
-		}
-
-		if ( (errno = pthread_create(&(thread_arg.thread_id), &thread_attr, &handle_connection, &thread_arg)) ) {
-			perror("pthread_create");
-			if (close(socket_fd) < 0) { perror("close"); }
-			return -1;
-		}
-
-		if ( (errno = pthread_attr_destroy(&thread_attr)) ) {
-			perror("pthread_attr_destroy");
-			if (close(socket_fd) < 0) { perror("close"); }
-			return -1;
-		}
-
-		/* Wait for thread to copy data */
-		while ( !thread_arg.done ) {}
+		close(new_conn);
 	}
 
 	if ( close(socket_fd) < 0) {
@@ -125,74 +154,4 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-static void *handle_connection(void *arg) {
 
-	struct thread_arg_t *args_p = (struct thread_arg_t*)arg;
-	pthread_t thread_id = args_p->thread_id;
-	int socket_fd = args_p->socket_fd;
-	char expression[MAX_EXPRESSION_LEN];
-	ssize_t expression_len = 0;
-	char done = 0;
-
-	args_p->done = 1;
-	args_p = NULL;
-
-	/* Receive the next expression */
-	while (!done) {
-		if ( (expression_len = recv(socket_fd, expression, MAX_EXPRESSION_LEN, 0)) < 0 ) {
-			fprintf(stderr, "%x: ", (int)thread_id);
-			perror("recv");
-			if (close(socket_fd) < 0) {
-				fprintf(stderr, "%x: ", (int)thread_id);
-				perror("close");
-			}
-			exit(-1);
-		} else if (0 == expression_len) {
-			/* Done */
-			if (close(socket_fd) < 0) {
-				fprintf(stderr, "%x: ", (int)thread_id);
-				perror("close"); exit(-1);
-			}
-			done = 1;
-		} else {
-			float a, b, answer;
-			char op;
-			int ret = sscanf(expression, "%g%c%g", &a, &op, &b);
-			ssize_t exp_len = strlen(expression) + 1, len, sent_len = 0;
-
-			if ( (ret == EOF) || (ret < 3) ) {
-				answer = NAN;
-			} else {
-				switch(op) {
-					case '*': answer = a * b; break;
-					case '/': answer = a / b; break;
-					case '+': answer = a + b; break;
-					case '-': answer = a - b; break;
-					case '^': answer = pow(a,b); break;
-					default: answer = NAN; break;
-				}
-			}
-			sprintf(expression, "%g", answer);
-			if (exp_len > MAX_RESPONSE_LEN) {
-				len = exp_len;
-			} else {
-				len = MAX_RESPONSE_LEN;
-				expression[MAX_RESPONSE_LEN-1] = '\0';
-			}
-			while (len > 0) {
-				if ( (sent_len = send(socket_fd, expression, len, 0)) < 0) {
-					fprintf(stderr, "%x: ", (int)thread_id);
-					perror("send");
-					if (close(socket_fd) < 0) {
-						fprintf(stderr, "%x: ", (int)thread_id);
-						perror("close");
-					}
-					exit(-1);
-				}
-				len -= sent_len;
-			}
-		}
-	}
-
-	pthread_exit(NULL);
-}
