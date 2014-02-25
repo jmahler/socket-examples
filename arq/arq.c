@@ -20,7 +20,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 
 	unsigned char num_resend;
 
-	// write some data wait for an ACK
+	/* write some data wait for an ACK */
 	send_len = HEADER_SZ + MIN(len, DATA_SZ);
 	memcpy(&sbuf.data, buf, MIN(len, DATA_SZ));
 	sbuf.seq = seq;
@@ -49,9 +49,9 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 			perror("select");
 			return -1;
 		} else if (0 == n) {
-			// timeout
+			/* timeout */
 
-			// give up after a maximum number of re-sends
+			/* give up after a maximum number of re-sends */
 			if (++num_resend > MAX_RESEND)
 				return 0;
 
@@ -70,7 +70,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 			&& ack_buf.type == TYPE_ACK
 			&& ack_buf.seq 	== seq) {
 
-			// ACK confirmed
+			/* ACK confirmed */
 
 			seq = (seq) ? 0 : 1;
 
@@ -81,7 +81,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 	return data_len;
 }
 
-// receive some data and send an ACK
+/* receive some data and send an ACK */
 int arq_recvfrom(int sockfd, void *buf, size_t len,
 		int flags, struct sockaddr *src_addr, socklen_t *addrlen)
 {
@@ -112,7 +112,7 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 
 		tot_len = n;
 
-		// assign initial recv_seq number
+		/* assign initial recv_seq number */
 		if (-1 == recv_seq) {
 			recv_seq = rbuf.seq ? 0 : 1;
 		}
@@ -121,19 +121,19 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		if (   tot_len   >= HEADER_SZ
 			&& rbuf.type == TYPE_DATA
 			&& rbuf.seq  != recv_seq) {
-			// received a valid packet
+			/* received a valid packet */
 
-			// save the data
+			/* save the data */
 			data_len = tot_len - HEADER_SZ;
 			memcpy(buf, rbuf.data, data_len);
 
-			// next sequence number
+			/* next sequence number */
 			recv_seq = recv_seq ? 0 : 1;
 
 			valid = 1;
 		}
 
-		// send an ACK
+		/* send an ACK */
 		ack_buf.seq = rbuf.seq;
 		ack_buf.type = TYPE_ACK;
 		n = packetErrorSendTo(sockfd, &ack_buf, ACK_SZ, 0,
@@ -144,7 +144,7 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		}
 	}
 
-	// update the receive addresses
+	/* update the receive addresses */
 	if (src_addr != NULL)
 		memcpy(src_addr, &cliaddr, sizeof(cliaddr));
 	if (addrlen != NULL)

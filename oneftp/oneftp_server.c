@@ -85,14 +85,14 @@ int main(int argc, char* argv[]) {
 		cleanup_exit();
 	}
 
-	// listen for a single connection
+	/* listen for a single connection */
 	n = listen(sockfd, 0);
 	if (-1 == n) {
 		perror("listen");
 		cleanup_exit();
 	}
 
-	// only accept once
+	/* only accept once */
 	act_sockfd = accept(sockfd, res->ai_addr, &(res->ai_addrlen));
 	if (-1 == act_sockfd) {
 		perror("accept");

@@ -52,12 +52,12 @@
 
 #define MAC_ANY "00:00:00:00:00:00"
 #define MAC_BCAST "FF:FF:FF:FF:FF:FF"
-// ARP protocol address length (from RFC 826)
+/* ARP protocol address length (from RFC 826) */
 #define ARP_PROLEN 4
 
 #define DEBUG 0
 
-// {{{ get_srcipmac()
+/* {{{ get_srcipmac() */
 /*
  * get_srcipmac()
  *
@@ -93,16 +93,16 @@ int get_srcipmac(char *dev_str, char *src_ip, char *src_mac)
 	src_mac[0] = '\0';
 	src_ip[0] = '\0';
 
-	// go through all the interface addresses
+	/* go through all the interface addresses */
 	for (p = ifap; p != NULL; p = p->ifa_next) {
 		sa = p->ifa_addr;
 
-		// skip devices we don't care about
+		/* skip devices we don't care about */
 		if (0 != strcmp(p->ifa_name, dev_str))
 			continue;
 
         if (sa->sa_family == AF_INET) {
-			// get our IP address
+			/* get our IP address */
 			sin = (struct sockaddr_in *) sa;
 
 			if (NULL == inet_ntop(sin->sin_family, &(sin->sin_addr),
@@ -111,17 +111,17 @@ int get_srcipmac(char *dev_str, char *src_ip, char *src_mac)
 				return -2;
 			}
 		} else if (sa->sa_family == AF_PACKET) {
-			// get our MAC address
+			/* get our MAC address */
 
 			sll = (struct sockaddr_ll *) sa;
 			sll_halen = sll->sll_halen;
 
-			// build a string of the MAC address
-			// ab:ef:01:aa:de
+			/* build a string of the MAC address
+			 * ab:ef:01:aa:de */
 			for (i = 0; i < sll_halen; i++) {
 				sprintf(src_mac + i*3, "%02x:", sll->sll_addr[i]);
 			}
-			// remove last ':' by ending line one early
+			/* remove last ':' by ending line one early */
 			src_mac[sll_halen*3 - 1] = '\0';
 		}
 	}
@@ -138,9 +138,9 @@ int get_srcipmac(char *dev_str, char *src_ip, char *src_mac)
 
 	return 0;
 }
-// }}}
+/* }}} */
 
-// {{{ arp_reply()
+/* {{{ arp_reply() */
 /*
  * arp_reply()
  *
@@ -151,11 +151,11 @@ int get_srcipmac(char *dev_str, char *src_ip, char *src_mac)
  *   arp_reply(pcap_handle, src_ip, src_mac, dst_ip, dst_mac);
  *   arp_reply(pcap_handle, "192.168.2.1", "00:11:22:33:44:55", ...);
  */
+#define SIZEOF_BUF ETHER_HDR_LEN + sizeof(struct ether_arp)
 int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
 									char *dst_ip, char *dst_mac)
 {
-	const size_t sizeof_buf = ETHER_HDR_LEN + sizeof(struct ether_arp);
-	u_char packet_data[sizeof_buf];
+	u_char packet_data[SIZEOF_BUF];
 	struct ether_header *ethhdr = NULL;
 	struct ether_arp *ether_arp = NULL;
 	struct ether_addr *ethaddr = NULL;
@@ -163,11 +163,11 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
 	ethhdr = (struct ether_header *) packet_data;
 	ether_arp = (struct ether_arp *) (packet_data + ETHER_HDR_LEN);
 
-	//
-	// Configure Ethernet header
-	//
+	/*
+	 * Configure Ethernet header
+	 */
 
-	// destination MAC address
+	/* destination MAC address */
 	ethaddr = ether_aton(dst_mac);
 	if (NULL == ethaddr) {
 		fprintf(stderr, "Invalid Ethernet destination address.\n");
@@ -175,37 +175,37 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
 	}
 	memcpy(&ethhdr->ether_dhost, ethaddr, ETH_ALEN);
 
-	// source MAC address
-	ethaddr = ether_aton(src_mac);  // our MAC
+	/* source MAC address */
+	ethaddr = ether_aton(src_mac);  /* our MAC */
 	if (NULL == ethaddr) {
 		fprintf(stderr, "Invalid Ethernet source address.\n");
 		return -2;
 	}
 	memcpy(&ethhdr->ether_shost, ethaddr, ETH_ALEN);
 
-	// type
+	/* type */
 	ethhdr->ether_type = htons(ETHERTYPE_ARP);
 
-	//
-	// configure ARP header
-	//
+	/*
+	 * configure ARP header
+	 */
 
-	// hardware type
+	/* hardware type */
 	ether_arp->arp_hrd = htons(ARPHRD_ETHER);
 
-	// protocol type
+	/* protocol type */
 	ether_arp->arp_pro = htons(ETHERTYPE_IP);
 
-	// hardware address length
+	/* hardware address length */
 	ether_arp->arp_hln = ETH_ALEN;
 
-	// protocol address length
+	/* protocol address length */
 	ether_arp->arp_pln = ARP_PROLEN;
 
-	// operation
+	/* operation */
 	ether_arp->arp_op = htons(ARPOP_REPLY);
 
-	// sender (our) hardware (MAC) address
+	/* sender (our) hardware (MAC) address */
 	ethaddr = ether_aton(src_mac);
 	if (NULL == ethaddr) {
 		fprintf(stderr, "Invalid target hardware address.\n");
@@ -213,10 +213,10 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
 	}
 	memcpy(&ether_arp->arp_sha, ethaddr, ETH_ALEN);
 
-	// sender (our) protocol (IP) address
+	/* sender (our) protocol (IP) address */
 	inet_pton(AF_INET, src_ip, &ether_arp->arp_spa);
 
-	// target hardware (MAC) address
+	/* target hardware (MAC) address */
 	ethaddr = ether_aton(dst_mac);
 	if (NULL == ethaddr) {
 		fprintf(stderr, "Invalid target hardware address.\n");
@@ -224,17 +224,17 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
 	}
 	memcpy(&ether_arp->arp_tha, ethaddr, ETH_ALEN);
 
-	// target protocol (IP) address
+	/* target protocol (IP) address */
 	inet_pton(AF_INET, dst_ip, &ether_arp->arp_tpa);
 
-	// send the ARP packet
-	pcap_inject(pcap_handle, (void *) packet_data, sizeof_buf);
+	/* send the ARP packet */
+	pcap_inject(pcap_handle, (void *) packet_data, SIZEOF_BUF);
 
 	return 0;
 }
-// }}}
+/* }}} */
 
-// {{{ cleanup()
+/* {{{ cleanup() */
 /*
  * cleanup()
  *
@@ -244,7 +244,7 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
  * detected.
  */
 
-pcap_t *pcap_handle = NULL;  // Handle for PCAP library
+pcap_t *pcap_handle = NULL;  /* Handle for PCAP library */
 struct arptable *arptbl = NULL;
 
 void cleanup(void) {
@@ -256,9 +256,9 @@ void cleanup(void) {
 
 	free_arptable(arptbl);
 }
-// }}}
+/* }}} */
 
-// {{{ is_arp_request()
+/* {{{ is_arp_request() */
 /*
  * is_arp_request()
  *
@@ -284,7 +284,7 @@ int is_arp_request(struct pcap_pkthdr *packet_hdr,
 	len = packet_hdr->len;
 
 	if (len < sizeof(struct ether_header)) {
-		// too small to have an Ethernet header, ignore
+		/* too small to have an Ethernet header, ignore */
 		return 0;
 	}
 
@@ -298,36 +298,36 @@ int is_arp_request(struct pcap_pkthdr *packet_hdr,
 		_arp_op = ntohs(ether_arp->arp_op);
 
 		if (_arp_op != ARPOP_REQUEST)
-			return 0;  // not a request
+			return 0;  /* not a request */
 
-		// sender hardware (MAC) address
+		/* sender hardware (MAC) address */
 		strp = ether_ntoa((struct ether_addr*) &ether_arp->arp_sha);
 		strcpy(src_mac, strp);
 
-		// sender protocol (IP) address
+		/* sender protocol (IP) address */
 		arp_spa = (struct in_addr*) ether_arp->arp_spa;
 		strp = inet_ntoa(*arp_spa);
 		strcpy(src_ip, strp);
 
-		// target protocol (IP) address
+		/* target protocol (IP) address */
 		arp_tpa = (struct in_addr*) ether_arp->arp_tpa;
 		strp = inet_ntoa(*arp_tpa);
 		strcpy(rqs_ip, strp);
 
-		return 1;  // it was a request
+		return 1;  /* it was a request */
 	}
 
-	return 0;  // default, not a request
+	return 0;  /* default, not a request */
 }
-// }}}
+/* }}} */
 
 int main(int argc, char *argv[]) {
 
-	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
-	char *dev_name = NULL;				// Device name for live capture
-	char *addr_file = NULL;				// File with addresses
+	char pcap_buff[PCAP_ERRBUF_SIZE];	/* Error buffer used by pcap */
+	char *dev_name = NULL;				/* Device name for live capture */
+	char *addr_file = NULL;				/* File with addresses */
 
-	ssize_t n;
+	int n;
 
 	int ret;
 	struct pcap_pkthdr *packet_hdr = NULL;
@@ -339,14 +339,14 @@ int main(int argc, char *argv[]) {
 	char dst_ip[INET6_ADDRSTRLEN];
 	char rqs_ip[INET6_ADDRSTRLEN];
 
-	// set atexit() cleanup function
+	/* set atexit() cleanup function */
 	if (atexit(cleanup) != 0) {
 		fprintf(stderr, "unable to set atexit() function\n");
 		exit(EXIT_FAILURE);
 	}
-	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
 
-	// Check command line arguments
+	/* Check command line arguments */
 	if (argc != 3) {
 		fprintf(stderr, "Usage: %s <net device>\n", argv[0]);
 		return -1;
@@ -354,14 +354,14 @@ int main(int argc, char *argv[]) {
 	dev_name  = argv[1];
 	addr_file = argv[2];
 
-	// load the addresses
+	/* load the addresses */
 	n = load_addrs(&arptbl, addr_file);
 	if (n < 0) {
-		fprintf(stderr, "load_addrs() failed (%zd)\n", n);
+		fprintf(stderr, "load_addrs() failed (%i)\n", n);
 		exit(EXIT_FAILURE);
 	}
 
-	// open device
+	/* open device */
 	pcap_handle = pcap_open_live(dev_name, BUFSIZ, 1, 0, pcap_buff);
 	if (pcap_handle == NULL) {
 		fprintf(stderr, "Error opening capture device %s: %s\n",
@@ -371,16 +371,16 @@ int main(int argc, char *argv[]) {
 
 	n = get_srcipmac(dev_name, src_ip, src_mac);
 	if (n < 0) {
-		fprintf(stderr, "get_srcipmac() failed (%zd)\n", n);
+		fprintf(stderr, "get_srcipmac() failed (%i)\n", n);
 		exit(EXIT_FAILURE);
 	}
 
-	// look for ARP requests, send replies
+	/* look for ARP requests, send replies */
 	while (1) {
-		// receive some data
+		/* receive some data */
 		ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
 		if (ret < 0)
-			continue;  // timeout or error
+			continue;  /* timeout or error */
 
 		if (is_arp_request(packet_hdr, packet_data, dst_ip,
 													dst_mac, rqs_ip)) {

@@ -48,14 +48,14 @@ int main(int argc, char* argv[]) {
 	int left, i;
 	char buf[MAXLINE];
 
-	// configure at exit cleanup function
+	/* configure at exit cleanup function */
 	sockfd = 0;
 	res = NULL;
 	if (atexit(cleanup) != 0) {
 		fprintf(stderr, "unable to set exit function\n");
 		exit(EXIT_FAILURE);
 	}
-	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
 
 
 	if (argc != 3) {
@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// loop through addresses, use first one that works
+	/* loop through addresses, use first one that works */
 	for (p = res; p != NULL; p = p->ai_next) {
 		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		if (-1 == sockfd) {
@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
 	while (fgets(buf, MAXLINE, stdin)) {
 		n = strlen(buf);
 
-		// write the line to the server
+		/* write the line to the server */
 		left = n;
 		i = 0;
 		while (left) {
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
 			i += n;
 		}
 
-		// read the result from the server, print to stdout
+		/* read the result from the server, print to stdout */
 		while (1) {
 			n = recvfrom(sockfd, buf, MAXLINE, 0, NULL, NULL);
 			if (-1 == n) {
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
 				exit(EXIT_FAILURE);
 			}
 
-			// make sure it is terminated
+			/* make sure it is terminated */
 			buf[n] = '\0';
 
 			fputs(buf, stdout);

@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "unable to set exit function\n");
 		exit(EXIT_FAILURE);
 	}
-	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
 
 	if (argc != 1) {
 		fprintf(stderr, "usage: %s\n", argv[0]);

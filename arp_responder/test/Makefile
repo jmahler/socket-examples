@@ -1,5 +1,5 @@
 
-ARGV = -Wall -Wextra -I../
+ARGV = -Wall -Wextra -pedantic -I../
 
 all: ar_memory
 

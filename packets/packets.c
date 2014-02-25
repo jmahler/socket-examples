@@ -45,19 +45,20 @@
 
 #include <pcap/pcap.h>
 
+#define MAXSTR 128
+
 int main(int argc, char *argv[]) {
 
-	char pcap_buff[PCAP_ERRBUF_SIZE];       // Error buffer used by pcap
-	pcap_t *pcap_handle = NULL;             // Handle for PCAP library
-	struct pcap_pkthdr *packet_hdr = NULL;  // Packet header from PCAP
-	const u_char *packet_data = NULL;       // Packet data from PCAP
-	int ret = 0;                            // Return value from library calls
+	char pcap_buff[PCAP_ERRBUF_SIZE];       /* Error buffer used by pcap */
+	pcap_t *pcap_handle = NULL;             /* Handle for PCAP library */
+	struct pcap_pkthdr *packet_hdr = NULL;  /* Packet header from PCAP */
+	const u_char *packet_data = NULL;       /* Packet data from PCAP */
+	int ret = 0;                            /* Return value from library calls */
 	char *file_or_dev = NULL;
 	uint32_t len;
 
 	struct ether_header *ethhdr = NULL;
 	char *strp = NULL;
-	const int MAXSTR = 128;
 	char str[MAXSTR];
 	uint16_t ether_type;
 
@@ -72,7 +73,7 @@ int main(int argc, char *argv[]) {
 
 	uint16_t *vlan_id;
 
-	// Check command line arguments
+	/* Check command line arguments */
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s <file | device>\n", argv[0]);
 		return -1;
@@ -80,8 +81,8 @@ int main(int argc, char *argv[]) {
 		file_or_dev = argv[1];
 	}
 
-	// Try to open as a file and if that doesn't work
-	// try to open as a device.
+	/* Try to open as a file and if that doesn't work
+	 * try to open as a device. */
 	pcap_handle = pcap_open_offline(file_or_dev, pcap_buff);
 	if (NULL == pcap_handle) {
 		pcap_handle = pcap_open_live(file_or_dev, BUFSIZ, 1, 0, pcap_buff);
@@ -101,25 +102,25 @@ int main(int argc, char *argv[]) {
 		ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
 
 		if (ret == -2) {
-			// trace ended
+			/* trace ended */
 			break;
 		} else if (ret == -1) {
-			// An error occurred
+			/* An error occurred */
 			pcap_perror(pcap_handle, "Error processing packet:");
 			pcap_close(pcap_handle);
 			return -1;
 		} else if (ret == 0) {
-			// live capture timeout
+			/* live capture timeout */
 			continue;
 		} else if (ret != 1) {
-			// Unexpected return values; other values shouldn't happen
-			// when reading trace files
+			/* Unexpected return values; other values shouldn't happen
+			 * when reading trace files */
 			fprintf(stderr, "Unexpected return val (%i) from pcap_next_ex()\n",
 																ret);
 			pcap_close(pcap_handle);
 			return -1;
 		} else {
-			// Process the packet and print results
+			/* Process the packet and print results */
 
 			len = packet_hdr->len;
 
@@ -135,18 +136,18 @@ int main(int argc, char *argv[]) {
 
 			ethhdr = (struct ether_header*) packet_data;
 
-			// source mac address
+			/* source mac address */
 			strp = ether_ntoa((struct ether_addr*) &ethhdr->ether_shost);
 			printf("%s -> ", strp);
 
-			// destination mac address
+			/* destination mac address */
 			strp = ether_ntoa((struct ether_addr*) &ethhdr->ether_dhost);
 			printf("%s ", strp);
 
-			// Ethernet type
+			/* Ethernet type */
 			ether_type = ntohs(ethhdr->ether_type);
 			if (ether_type <= ETH_DATA_LEN) {
-				// length
+				/* length */
 				printf("[len:%i] ", ether_type);
 			} else if (ether_type == ETHERTYPE_IP) {
 				printf("[IPv4] ");
@@ -158,11 +159,11 @@ int main(int argc, char *argv[]) {
 
 				ip = (struct ip*) (packet_data + ETHER_HDR_LEN);
 
-				// IP source address
+				/* IP source address */
 				inet_ntop(AF_INET, &ip->ip_src, str, MAXSTR);
 				printf("%s -> ", str);
 
-				// IP destination address
+				/* IP destination address */
 				inet_ntop(AF_INET, &ip->ip_dst, str, MAXSTR);
 				printf("%s ", str);
 			} else if (ether_type == ETHERTYPE_ARP) {
@@ -178,28 +179,28 @@ int main(int argc, char *argv[]) {
 				_arp_op = ntohs(ether_arp->arp_op);
 
 				if (_arp_op == ARPOP_REQUEST) {
-					// sender protocol address (spa)
+					/* sender protocol address (spa) */
 					arp_spa = (struct in_addr*) ether_arp->arp_spa;
 					printf("%s ", inet_ntoa(*arp_spa));
 
 					printf("requests ");
 
-					// target protocol address (tpa)
+					/* target protocol address (tpa) */
 					arp_tpa = (struct in_addr*) ether_arp->arp_tpa;
 					printf("%s ", inet_ntoa(*arp_tpa));
 				} else if (_arp_op == ARPOP_REPLY) {
-					// sender protocol address (spa)
+					/* sender protocol address (spa) */
 					arp_spa = (struct in_addr*) ether_arp->arp_spa;
 					printf("%s ", inet_ntoa(*arp_spa));
 
 					printf("at ");
 
-					// sender hardware address (sha)
+					/* sender hardware address (sha) */
 					strp = ether_ntoa((struct ether_addr*) &ether_arp->arp_sha);
 					printf("%s ", strp);
 
 				} else {
-					// unknown
+					/* unknown */
 					printf("?:0x%.2x ", _arp_op);
 				}
 
@@ -211,7 +212,7 @@ int main(int argc, char *argv[]) {
 					continue;
 				}
 
-				// VLAN ID
+				/* VLAN ID */
 				vlan_id = (uint16_t*) (packet_data + ETHER_HDR_LEN);
 				*vlan_id = ntohs(*vlan_id) & 0xFFF;
 				printf("ID = %i ", *vlan_id);

@@ -26,26 +26,26 @@ int load_addrs(struct arptable **root, char *file) {
 	int first;
 	int ret = 0;
 
-	// It is assumed that atbl (struct arptable)
-	// has not defined any entries.
+	/* It is assumed that atbl (struct arptable)
+	 * has not defined any entries. */
 
 	fd = fopen(file, "r");
 	if (NULL == fd) {
 		perror("open failed");
-		return -1;  // error
+		return -1;  /* error */
 	}
 
 	first = 1;
 	while (1) {
 		n = getline(&line, &len, fd);
 		if (n < 0) {
-			// eof
+			/* eof */
 			if (0 == errno) {
-				ret = 0;  // normal exit
+				ret = 0;  /* normal exit */
 				break;
 			}
 
-			// some error
+			/* some error */
 			perror("getline failed");
 			ret = -2;
 			break;
@@ -55,10 +55,10 @@ int load_addrs(struct arptable **root, char *file) {
 			continue;
 		}
 
-		// remove newline
+		/* remove newline */
 		line[len-1] = '\0';
 
-		// get the ip address
+		/* get the ip address */
 		n = sscanf(line, "%s", ip);
 		if (n < 0) {
 			perror("sscanf ip failed");
@@ -69,7 +69,7 @@ int load_addrs(struct arptable **root, char *file) {
 		if (0 == n) {
 			continue;
 		}
-		// get the mac
+		/* get the mac */
 		n = sscanf(&line[n+1], "%s", mac);
 		if (n < 0) {
 			perror("sscanf mac failed");
@@ -77,14 +77,14 @@ int load_addrs(struct arptable **root, char *file) {
 			break;
 		}
 
-		// invalid line?
+		/* invalid line? */
 		if (0 == n) {
 			printf("skipping line with missing mac\n");
 			continue;
 		}
 
-		// found an ip and mac
-		// add a new entry in to the linked list
+		/* found an ip and mac
+		 * add a new entry in to the linked list */
 		new_p = malloc(sizeof(*new_p));
 		strcpy(new_p->ip, ip);
 		strcpy(new_p->mac, mac);
@@ -104,20 +104,20 @@ int load_addrs(struct arptable **root, char *file) {
 
 	fclose(fd);
 
-	return ret;  // success
+	return ret;  /* success */
 }
 
 int mac_lookup(struct arptable *p, char *ip, char *mac)
 {
 	if (NULL == p)
-		return 0;  // reached end, no entry found
+		return 0;  /* reached end, no entry found */
 
 	if (0 == strcmp(ip, p->ip)) {
 		strcpy(mac, p->mac);
-		return 1;  // found an entry
+		return 1;  /* found an entry */
 	}
 
-	return mac_lookup(p->next, ip, mac);  // continue searching
+	return mac_lookup(p->next, ip, mac);  /* continue searching */
 }
 
 void free_arptable(struct arptable *p)
@@ -125,7 +125,7 @@ void free_arptable(struct arptable *p)
 	struct arptable *pn;
 
 	if (NULL == p)
-		return;  // found the end
+		return;  /* found the end */
 
 	pn = p->next;
 	free(p);

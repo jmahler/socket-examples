@@ -48,10 +48,10 @@
 #define MAXDATA		DATA_SZ
 
 struct arq_packet {
-	// header
+	/* header */
 	unsigned char type;
 	unsigned char seq;
-	// data
+	/* data */
 	char data[DATA_SZ];
 };
 
@@ -91,4 +91,4 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 int arq_recvfrom(int sockfd, void *buf, size_t len,
 		int flags, struct sockaddr *src_addr, socklen_t *addrlen);
 
-#endif // _ARQ_H
+#endif /* _ARQ_H */

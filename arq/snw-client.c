@@ -78,18 +78,18 @@ int main(int argc, char* argv[]) {
 	char *host;
 	char *port;
 
-	char sbuf[MAXLINE];	// send buffer
-	char rbuf[MAXLINE];	// receive buffer
+	char sbuf[MAXLINE];	/* send buffer */
+	char rbuf[MAXLINE];	/* receive buffer */
 	size_t len;
 
-	// Setup the cleanup() function to be called at exit() or Ctrl-C.
+	/* Setup the cleanup() function to be called at exit() or Ctrl-C. */
 	sockfd = 0;
 	res = NULL;
 	if (atexit(cleanup) != 0) {
 		fprintf(stderr, "unable to set exit function\n");
 		exit(EXIT_FAILURE);
 	}
-	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
 
 	if (argc != 4) {
 		fprintf(stderr, "usage: %s <host> <port> <input file>\n", argv[0]);
@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
 	port = argv[2];
 	infile = argv[3];
 
-	// The output file is the infile with .out appended.
+	/* The output file is the infile with .out appended. */
 	n = snprintf(outfile, sizeof(outfile), "%s.out", infile);
 	if (n < 0) {
 		fprintf(stderr, "snprintf failed\n");
@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// send the file name
+	/* send the file name */
 	len = (strlen(infile) + 1)*sizeof(*infile);
 	memcpy(&sbuf, infile, len);
 	n = arq_sendto(sockfd, &sbuf, len, 0, res->ai_addr, res->ai_addrlen);
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// receive the data
+	/* receive the data */
 	while ( (n = arq_recvfrom(sockfd, &rbuf, MAXLINE, 0, NULL, NULL))) {
 		if (-1 == n) {
 			perror("arq_recvfrom");

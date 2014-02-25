@@ -1,5 +1,5 @@
 
-ARGV = -Wall -Wextra
+ARGV = -Wall -Wextra -pedantic
 
 all: arp_responder
 

@@ -1,11 +1,13 @@
 
+ARGV = -Wall -Wextra -pedantic
+
 all: calc_server calc_client
 
 calc_server: calc_server.c
-	gcc -Wall -Wextra -pedantic -lm $< -o $@
+	gcc $(ARGV) -lm $< -o $@
 
 calc_client: calc_client.c
-	gcc -Wall -Wextra -pedantic -O2 $< -o $@
+	gcc $(ARGV) $< -o $@
 
 clean:
 	-rm -f calc_server calc_client

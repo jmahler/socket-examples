@@ -1,5 +1,5 @@
 
-ARGV = -Wall -Wextra -g
+ARGV = -Wall -Wextra -pedantic
 
 all: snw-client snw-server
 

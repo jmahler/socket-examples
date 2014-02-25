@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "unable to set exit function\n");
 		exit(EXIT_FAILURE);
 	}
-	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
 
 	if (argc != 1) {
 		fprintf(stderr, "usage: %s\n", argv[0]);
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 
-		// find the port number we were given
+		/* find the port number we were given */
 		if (p->ai_family == AF_INET) {
 			len = sizeof(struct sockaddr_in);
 			if (getsockname(sockfd, (struct sockaddr *) &sin, &len) == -1) {
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	// receive the file name
+	/* receive the file name */
 	while (1) {
 		cliaddr_len = sizeof(cliaddr);
 		n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// An empty send signals EOF
+	/* An empty send signals EOF */
 	n = arq_sendto(sockfd, &sbuf, 0, 0, &cliaddr, cliaddr_len);
 	if (-1 == n) {
 		perror("arq_sendto, EOF");
