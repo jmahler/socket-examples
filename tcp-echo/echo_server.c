@@ -28,7 +28,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#define PORT "16245"
+/*#define PORT "16245"*/	/* > 0, set to specific port */
+#define PORT "0"		/* allocate a free port */
+
 #define MAXLINE 1500
 
 int sockfd = 0;
@@ -48,6 +50,8 @@ int main(int argc, char* argv[]) {
 	int n;
 	int sockfd;
 	uint8_t msg[MAXLINE];
+	struct sockaddr_in sin;
+	socklen_t len;
 
 	if (atexit(cleanup) != 0) {
 		fprintf(stderr, "unable to set exit function\n");
@@ -99,7 +103,19 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Port: %s\n", PORT);
+	/* find the port number we were given */
+	if (p->ai_family == AF_INET) {
+		len = sizeof(struct sockaddr_in);
+		if (getsockname(sockfd, (struct sockaddr *) &sin, &len) == -1) {
+			perror("getsockname");
+			exit(EXIT_FAILURE);
+		}
+
+		printf("Port: %u\n", ntohs(sin.sin_port));
+	} else {
+		fprintf(stderr, "only ipv4 supported\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/* Accept connections, one at a time */
 	while (1) {
