@@ -33,31 +33,25 @@
 
 #define MAXLINE 1500
 
-int sockfd = 0;
-struct addrinfo *res = NULL;
-
-void cleanup(void) {
-	if (sockfd > 0)
-		close(sockfd);
-
-	if (res)
-		freeaddrinfo(res);
+static int quit = 0;
+void int_handler() {
+	quit = 1;
 }
 
 int main(int argc, char* argv[]) {
 
 	struct addrinfo hints, *p;
 	int n;
-	int sockfd;
+	int sockfd = 0;
 	uint8_t msg[MAXLINE];
 	struct sockaddr_in sin;
 	socklen_t len;
+	struct addrinfo *res = NULL;
+	struct sigaction int_act;
 
-	if (atexit(cleanup) != 0) {
-		fprintf(stderr, "unable to set exit function\n");
-		exit(EXIT_FAILURE);
-	}
-	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
+	memset(&int_act, 0, sizeof(int_act));
+	int_act.sa_handler = int_handler;
+	sigaction(SIGINT, &int_act, 0);  /* catch ctrl-C or ctrl-D */
 
 	if (argc != 1) {
 		fprintf(stderr, "usage: %s\n", argv[0]);
@@ -118,7 +112,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	/* Accept connections, one at a time */
-	while (1) {
+	while (!quit) {
 		int cli_conn;
 
 		/* Accept a new connection */
@@ -129,7 +123,7 @@ int main(int argc, char* argv[]) {
 		}
 
     	/* Receive input, echo back */
-		while (1) {
+		while (!quit) {
 
 			if ( (n = recv(cli_conn, msg, MAXLINE, 0)) < 0) {
 				perror("recv");
@@ -148,6 +142,12 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
+
+	if (sockfd > 0)
+		close(sockfd);
+
+	if (res)
+		freeaddrinfo(res);
 
 	return EXIT_SUCCESS;
 }

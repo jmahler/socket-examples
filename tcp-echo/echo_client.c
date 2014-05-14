@@ -29,16 +29,11 @@
 
 #define MAXLINE 1500
 
-int sockfd = 0;
-struct addrinfo *res = NULL;
-
-void cleanup(void) {
-	if (sockfd > 0)
-		close(sockfd);
-
-	if (res)
-		freeaddrinfo(res);
+static int quit = 0;
+void int_handler() {
+	quit = 1;
 }
+
 
 int main(int argc, char* argv[]) {
 	struct addrinfo hints, *p;
@@ -46,15 +41,9 @@ int main(int argc, char* argv[]) {
 	char *host;
 	char *port;
 	char buf[MAXLINE];
-
-	/* configure at exit cleanup function */
-	sockfd = 0;
-	res = NULL;
-	if (atexit(cleanup) != 0) {
-		fprintf(stderr, "unable to set exit function\n");
-		exit(EXIT_FAILURE);
-	}
-	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
+	int sockfd = 0;
+	struct addrinfo *res = NULL;
+	struct sigaction int_act;
 
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s <host> <port>\n", argv[0]);
@@ -62,6 +51,10 @@ int main(int argc, char* argv[]) {
 	}
 	host = argv[1];
 	port = argv[2];
+
+	memset(&int_act, 0, sizeof(int_act));
+	int_act.sa_handler = int_handler;
+	sigaction(SIGINT, &int_act, 0);  /* catch ctrl-C or ctrl-D */
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family 	= AF_INET;
@@ -92,7 +85,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	while (1) {
+	while (!quit) {
 
 		/* get line from user ... */
 		if (!fgets(buf, MAXLINE, stdin))
@@ -117,6 +110,12 @@ int main(int argc, char* argv[]) {
 
 		fputs(buf, stdout);
 	}
+
+	if (sockfd > 0)
+		close(sockfd);
+
+	if (res)
+		freeaddrinfo(res);
 
 	return EXIT_SUCCESS;
 }
