@@ -70,21 +70,18 @@ int main(int argc, char* argv[]) {
 
 	/* loop through addresses, use first one that works */
 	for (p = res; p != NULL; p = p->ai_next) {
-		/* Create the socket */
 		if ((sockfd = socket(p->ai_family, p->ai_socktype,
 							p->ai_protocol)) == -1) {
 			perror("socket");
 			continue;
 		}
 
-		/* Bind the socket */
 		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sockfd);	
 			perror("bind");
 			continue;
 		}
 
-		/* Listen to the socket */
 		if (listen(sockfd, 1) < 0) {
 			perror("listen");
 			return -1;
@@ -115,7 +112,6 @@ int main(int argc, char* argv[]) {
 	while (!quit) {
 		int cli_conn;
 
-		/* Accept a new connection */
 		cli_conn = accept(sockfd, NULL, NULL);
 		if (cli_conn < 0) {
 			perror("accept");

@@ -87,25 +87,20 @@ int main(int argc, char* argv[]) {
 
 	while (!quit) {
 
-		/* get line from user ... */
 		if (!fgets(buf, MAXLINE, stdin))
 			break;
 
 		n = strlen(buf);
 
-		/* Send output */
 		if ( (n = send(sockfd, buf, n, 0)) < 0) {
 			perror("send");
 			exit(EXIT_FAILURE);
 		}
 
-		/* Receive response */
 		if ( (n = recv(sockfd, buf, MAXLINE, 0)) < 0) {
 			perror("recv");
 			exit(EXIT_FAILURE);
 		}
-
-		/* make sure it is terminated */
 		buf[n] = '\0';
 
 		fputs(buf, stdout);
