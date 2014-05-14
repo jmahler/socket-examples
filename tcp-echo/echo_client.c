@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_FAILURE);
 		}
 
-		if ( (n = recv(sockfd, buf, MAXLINE, 0)) < 0) {
+		if ( (n = recv(sockfd, buf, MAXLINE - 1, 0)) < 0) {
 			perror("recv");
 			exit(EXIT_FAILURE);
 		}
