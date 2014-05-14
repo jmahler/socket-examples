@@ -221,26 +221,6 @@ int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 // }}}
 
 pcap_t *pcap_handle = NULL;  // Handle for PCAP library
-char   *userin 		= NULL;  // user input from stdin
-
-// {{{ cleanup()
-/*
- * cleanup()
- *
- * This cleanup() function is used with atexit() to ensure
- * that resources are released no matter where the program exits
- * and without requiring them to be released where the error is
- * detected.
- */
-
-void cleanup(void) {
-	if (userin)
-		free(userin);
-
-	if (pcap_handle)
-		pcap_close(pcap_handle);
-}
-// }}}
 
 // {{{ check_response()
 /*
@@ -313,27 +293,27 @@ void resp_timeout_handler() {
 }
 // }}}
 
+static int quit = 0;
+void int_handler() {
+	quit = 1;
+}
+
 int main(int argc, char *argv[]) {
 
 	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
 	char *dev_name = NULL;				// Device name for live capture
-
 	size_t userin_len = 0;
-
 	ssize_t n;
-
 	int ret;
 	struct pcap_pkthdr *packet_hdr = NULL;
 	const u_char *packet_data = NULL;
-
+	char *userin = NULL;
 	char got_response;
+	struct sigaction int_act;
 
-	// set atexit() cleanup function
-	if (atexit(cleanup) != 0) {
-		fprintf(stderr, "unable to set atexit() function\n");
-		exit(EXIT_FAILURE);
-	}
-	signal(SIGINT, exit);  // catch Ctrl-C/Ctrl-D and exit
+	memset(&int_act, 0, sizeof(int_act));
+	int_act.sa_handler = int_handler;
+	sigaction(SIGINT, &int_act, 0);  // catch Ctrl-C/Ctrl-D
 
 	// Check command line arguments
 	if (argc != 2) {
@@ -358,7 +338,7 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	while (1) {
+	while (!quit) {
 
 		// read user input
 		printf("Enter next IP address: ");
@@ -396,7 +376,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		// look for a response
-		while (1) {
+		while (!quit) {
 			// receive some data
 			ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
 			if (ret < 0)
@@ -413,6 +393,12 @@ int main(int argc, char *argv[]) {
 			printf("MAC: Lookup failed\n");		
 		}
 	}
+
+	if (userin)
+		free(userin);
+
+	if (pcap_handle)
+		pcap_close(pcap_handle);
 
 	return 0;
 }
