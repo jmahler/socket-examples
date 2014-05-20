@@ -33,38 +33,32 @@
 
 #define MAXLINE 1500
 
-int sockfd = 0;
-struct addrinfo *res = NULL;
-
-void cleanup(void) {
-	if (sockfd > 0)
-		close(sockfd);
-
-	if (res)
-		freeaddrinfo(res);
+static int quit = 0;
+void int_handler() {
+	quit = 1;
 }
 
 int main(int argc, char* argv[]) {
 
 	struct addrinfo hints, *p;
 	int n;
-	int sockfd;
 	uint8_t msg[MAXLINE];
 	struct sockaddr cliaddr;
 	socklen_t cliaddr_len;
 	struct sockaddr_in sin;
 	socklen_t len;
-
-	if (atexit(cleanup) != 0) {
-		fprintf(stderr, "unable to set exit function\n");
-		exit(EXIT_FAILURE);
-	}
-	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
+	int sockfd = 0;
+	struct addrinfo *res = NULL;
+	struct sigaction int_act;
 
 	if (argc != 1) {
 		fprintf(stderr, "usage: %s\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
+
+	memset(&int_act, 0, sizeof(int_act));
+	int_act.sa_handler = int_handler;
+	sigaction(SIGINT, &int_act, 0);  /* catch Ctrl-C/Ctrl-D */
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family 	= AF_INET;
@@ -114,7 +108,7 @@ int main(int argc, char* argv[]) {
 	}
 
    	/* Receive input, echo back */
-	while (1) {
+	while (!quit) {
 		cliaddr_len = sizeof(cliaddr);
 
 		n = recvfrom(sockfd, msg, MAXLINE, 0, &cliaddr, &cliaddr_len);
@@ -130,6 +124,12 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	if (sockfd > 0)
+		close(sockfd);
+
+	if (res)
+		freeaddrinfo(res);
 
 	return EXIT_SUCCESS;
 }
