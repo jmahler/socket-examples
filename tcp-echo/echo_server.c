@@ -51,7 +51,11 @@ int main(int argc, char* argv[]) {
 
 	memset(&int_act, 0, sizeof(int_act));
 	int_act.sa_handler = int_handler;
-	sigaction(SIGINT, &int_act, 0);  /* catch ctrl-C or ctrl-D */
+	/* catch ctrl-C or ctrl-D */
+	if (-1 == sigaction(SIGINT, &int_act, 0)) {
+		perror("int sigaction failed");
+		exit(EXIT_FAILURE);
+	}
 
 	if (argc != 1) {
 		fprintf(stderr, "usage: %s\n", argv[0]);

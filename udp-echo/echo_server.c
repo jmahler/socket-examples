@@ -58,7 +58,11 @@ int main(int argc, char* argv[]) {
 
 	memset(&int_act, 0, sizeof(int_act));
 	int_act.sa_handler = int_handler;
-	sigaction(SIGINT, &int_act, 0);  /* catch Ctrl-C/Ctrl-D */
+	/* catch Ctrl-C/Ctrl-D */
+	if (-1 == sigaction(SIGINT, &int_act, 0)) {
+		perror("int sigaction failed");
+		exit(EXIT_FAILURE);
+	}
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family 	= AF_INET;
