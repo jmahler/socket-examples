@@ -42,15 +42,9 @@
 
 #include "arq.h"
 
-int sockfd;
-struct addrinfo *res;
-
-void cleanup(void) {
-	if (sockfd > 0)
-		close(sockfd);
-
-	if (res)
-		freeaddrinfo(res);
+int quit = 0;
+void int_handler() {
+	quit = 1;
 }
 
 int main(int argc, char* argv[]) {
@@ -59,7 +53,6 @@ int main(int argc, char* argv[]) {
 
 	int n;
 
-	int sockfd;
 	struct sockaddr cliaddr;
 	socklen_t cliaddr_len;
 	struct sockaddr_in sin;
@@ -74,16 +67,21 @@ int main(int argc, char* argv[]) {
 	size_t left;
 	size_t i;
 
-	sockfd = 0;
-	res = NULL;
-	if (atexit(cleanup) != 0) {
-		fprintf(stderr, "unable to set exit function\n");
-		exit(EXIT_FAILURE);
-	}
-	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
+	int sockfd = 0;
+	struct addrinfo *res = NULL;
+
+	struct sigaction int_act;
 
 	if (argc != 1) {
 		fprintf(stderr, "usage: %s\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+	/* catch Ctrl-C/Ctrl-D and exit */
+	memset(&int_act, 0, sizeof(int_act));
+	int_act.sa_handler = int_handler;
+	if (-1 == sigaction(SIGINT, &int_act, 0)) {
+		perror("int sigaction failed");
 		exit(EXIT_FAILURE);
 	}
 
@@ -154,6 +152,9 @@ int main(int argc, char* argv[]) {
 	}
 
 	while ( (n = read(infd, &sbuf, MAXDATA))) {
+		if (quit)
+			break;
+
 		if (-1 == n) {
 			perror("read");
 			exit(EXIT_FAILURE);
@@ -178,6 +179,12 @@ int main(int argc, char* argv[]) {
 		perror("arq_sendto, EOF");
 		exit(EXIT_FAILURE);
 	}
+
+	if (sockfd > 0)
+		close(sockfd);
+
+	if (res)
+		freeaddrinfo(res);
 
 	return EXIT_SUCCESS;
 }

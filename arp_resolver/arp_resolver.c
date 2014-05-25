@@ -287,7 +287,7 @@ int check_response(struct pcap_pkthdr *packet_hdr, const u_char *packet_data) {
  * it will abort pcap_next_ex() when called.
  *
  */
-void resp_timeout_handler() {
+void timeout_handler() {
 	// tell pcap_next_ex to break
 	pcap_breakloop(pcap_handle);
 }
@@ -310,15 +310,20 @@ int main(int argc, char *argv[]) {
 	char *userin = NULL;
 	char got_response;
 	struct sigaction int_act;
+	struct sigaction timeout_act;
 
 	memset(&int_act, 0, sizeof(int_act));
 	int_act.sa_handler = int_handler;
-	sigaction(SIGINT, &int_act, 0);  // catch Ctrl-C/Ctrl-D
+	// catch Ctrl-C/Ctrl-D
+	if (-1 == sigaction(SIGINT, &int_act, 0)) {
+		perror("int sigaction failed");
+		exit(EXIT_FAILURE);
+	}
 
 	// Check command line arguments
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s <net device>\n", argv[0]);
-		return -1;
+		exit(EXIT_FAILURE);
 	} else {
 		dev_name = argv[1];
 	}
@@ -328,7 +333,7 @@ int main(int argc, char *argv[]) {
 	if (pcap_handle == NULL) {
 		fprintf(stderr, "Error opening capture device %s: %s\n",
 												dev_name, pcap_buff);
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 	printf("Capturing on interface '%s'\n", dev_name);
 
@@ -369,10 +374,11 @@ int main(int argc, char *argv[]) {
 		got_response = 0;
 
 		// engage the timeout, to quit if there is no response
-		alarm(RESP_TIMEOUT);
-		if (SIG_ERR == signal(SIGALRM, resp_timeout_handler)) {
-			perror("signal(SIGALRM) failed");
-			exit(EXIT_FAILURE);
+		memset(&timeout_act, 0, sizeof(timeout_act));
+		timeout_act.sa_handler = timeout_handler;
+		if (-1 == sigaction(SIGALRM, &timeout_act, 0)) {
+			perror("timeout sigaction failed");
+			break;
 		}
 
 		// look for a response

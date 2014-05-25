@@ -247,14 +247,9 @@ int arp_reply(pcap_t* pcap_handle, char *src_ip, char *src_mac,
 pcap_t *pcap_handle = NULL;  /* Handle for PCAP library */
 struct arptable *arptbl = NULL;
 
-void cleanup(void) {
-	if (DEBUG)
-		printf("cleanup()\n");
-
-	if (pcap_handle)
-		pcap_close(pcap_handle);
-
-	free_arptable(arptbl);
+int quit = 0;
+void int_handler() {
+	quit = 1;
 }
 /* }}} */
 
@@ -339,17 +334,19 @@ int main(int argc, char *argv[]) {
 	char dst_ip[INET6_ADDRSTRLEN];
 	char rqs_ip[INET6_ADDRSTRLEN];
 
-	/* set atexit() cleanup function */
-	if (atexit(cleanup) != 0) {
-		fprintf(stderr, "unable to set atexit() function\n");
+	struct sigaction int_act;
+
+	memset(&int_act, 0, sizeof(int_act));
+	int_act.sa_handler = int_handler;
+	if (-1 == sigaction(SIGINT, &int_act, 0)) {
+		perror("int sigaction failed");
 		exit(EXIT_FAILURE);
 	}
-	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
 
 	/* Check command line arguments */
 	if (argc != 3) {
 		fprintf(stderr, "Usage: %s <net device>\n", argv[0]);
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 	dev_name  = argv[1];
 	addr_file = argv[2];
@@ -376,7 +373,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* look for ARP requests, send replies */
-	while (1) {
+	while (!quit) {
 		/* receive some data */
 		ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
 		if (ret < 0)
@@ -394,5 +391,10 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	return 0;
+	if (pcap_handle)
+		pcap_close(pcap_handle);
+
+	free_arptable(arptbl);
+
+	return EXIT_SUCCESS;
 }

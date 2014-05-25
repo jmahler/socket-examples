@@ -56,15 +56,9 @@
 #include "packetErrorSendTo.h"
 #include "arq.h"
 
-int sockfd;
-struct addrinfo *res;
-
-void cleanup(void) {
-	if (sockfd > 0)
-		close(sockfd);
-
-	if (res)
-		freeaddrinfo(res);
+int quit = 0;
+void int_handler() {
+	quit = 1;
 }
 
 int main(int argc, char* argv[]) {
@@ -82,14 +76,17 @@ int main(int argc, char* argv[]) {
 	char rbuf[MAXLINE];	/* receive buffer */
 	size_t len;
 
-	/* Setup the cleanup() function to be called at exit() or Ctrl-C. */
-	sockfd = 0;
-	res = NULL;
-	if (atexit(cleanup) != 0) {
-		fprintf(stderr, "unable to set exit function\n");
+	int sockfd = 0;
+	struct addrinfo *res = NULL;
+
+	struct sigaction int_act;
+
+	memset(&int_act, 0, sizeof(int_act));
+	int_act.sa_handler = int_handler;
+	if (-1 == sigaction(SIGINT, &int_act, 0)) {
+		perror("int sigaction failed");
 		exit(EXIT_FAILURE);
 	}
-	signal(SIGINT, exit);  /* catch Ctrl-C/Ctrl-D and exit */
 
 	if (argc != 4) {
 		fprintf(stderr, "usage: %s <host> <port> <input file>\n", argv[0]);
@@ -139,8 +136,10 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	/* receive the data */
 	while ( (n = arq_recvfrom(sockfd, &rbuf, MAXLINE, 0, NULL, NULL))) {
+		if (quit)
+			break;
+
 		if (-1 == n) {
 			perror("arq_recvfrom");
 			exit(EXIT_FAILURE);
@@ -152,6 +151,12 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	if (sockfd > 0)
+		close(sockfd);
+
+	if (res)
+		freeaddrinfo(res);
 
 	return EXIT_SUCCESS;
 }
