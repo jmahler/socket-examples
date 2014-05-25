@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s <listen port>\n", argv[0]);
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 
 	/* Get the address structures to use */
@@ -95,25 +95,25 @@ int main(int argc, char *argv[]) {
 	hints.ai_flags = AI_PASSIVE;
 	if ( (res = getaddrinfo(NULL, argv[1], &hints, &results)) != 0 ) {
 		fprintf(stderr, "%s\n", gai_strerror(res));
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 
 	/* Check we only have one address */
 	if (results->ai_next != NULL) {
 		fprintf(stderr, "ERROR: Multiple addresses to choose from");
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 
 	/* Create the socket */
 	if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket");
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 
 	/* Bind the socket */
 	if (bind(sockfd, results->ai_addr, results->ai_addrlen) < 0) {
 		perror("bind");
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 	freeaddrinfo(results);
 	results = 0;
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 	/* Listen to the socket */
 	if (listen(sockfd, 10) < 0) {
 		perror("listen");
-		return -1;
+		exit(EXIT_FAILURE);
 	}
 
 	/* Accept and dispatch connections forever */
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
 		close(new_conn);
 	}
 
-	if ( close(sockfd) < 0) {
+	if (close(sockfd) < 0) {
 		perror("close");
 		return -1;
 	}

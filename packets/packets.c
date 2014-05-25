@@ -42,6 +42,7 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <pcap/pcap.h>
 
@@ -76,7 +77,7 @@ int main(int argc, char *argv[]) {
 	/* Check command line arguments */
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s <file | device>\n", argv[0]);
-		return -1;
+		exit(EXIT_FAILURE);
 	} else {
 		file_or_dev = argv[1];
 	}
@@ -89,7 +90,7 @@ int main(int argc, char *argv[]) {
 		if (NULL == pcap_handle) {
 			fprintf(stderr, "Error opening device (or file?) %s: %s\n",
 												file_or_dev, pcap_buff);
-			return -1;
+			exit(EXIT_FAILURE);
 		} else {
 			printf("Capturing on interface '%s'\n", file_or_dev);
 		}
@@ -118,7 +119,7 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "Unexpected return val (%i) from pcap_next_ex()\n",
 																ret);
 			pcap_close(pcap_handle);
-			return -1;
+			exit(EXIT_FAILURE);
 		} else {
 			/* Process the packet and print results */
 

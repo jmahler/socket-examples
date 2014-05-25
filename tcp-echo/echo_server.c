@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
 
 		if (listen(sockfd, 1) < 0) {
 			perror("listen");
-			return -1;
+			exit(EXIT_FAILURE);
 		}
 
 		break;
