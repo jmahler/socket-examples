@@ -19,7 +19,7 @@
  *
  *  Jeremiah Mahler <jmmahler@gmail.com>
  *
- *  CSU Chico, EECE 555, Fall 2013
+ *  CSU Chico, EECE 555, Fall 2014
  *
  */
 
