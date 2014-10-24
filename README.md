@@ -13,6 +13,8 @@ INDEX
 
  * udp-echo - udp echo client and server
 
+ * unix-echo - unix socket echo client/server
+
  * arq - Automatic Repeat Request (ARQ) file transfer
 
  * packets - read packets (using [libpcap][libpcap]) and display headers
