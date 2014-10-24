@@ -11,6 +11,8 @@ INDEX
 
  * oneftp - transfer one file from client to server
 
+ * tcp-echo - tcp echo client and server
+
  * udp-echo - udp echo client and server
 
  * unix-echo - unix socket echo client/server
