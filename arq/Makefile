@@ -3,17 +3,21 @@ ARGV = -Wall -Wextra -pedantic
 
 all: snw-client snw-server
 
-# Be sure to create a link to the 32-bit or 64-bit as appropriate
-#   ln -s libpacketErrorSendTo_64.a libpacketErrorSendTo.a
+libpacketErrorSendTo.o: libpacketErrorSendTo.c packetErrorSendTo.h
+	gcc $(ARGV) -c -o $@ $<
+
+libpacketErrorSendTo.a: libpacketErrorSendTo.o
+	ar rcs $@ $<
+
 libsendto := packetErrorSendTo
 
-arq.o: arq.c arq.h
+arq.o: arq.c arq.h libpacketErrorSendTo.a
 	gcc $(ARGV) -c $< -o $@ -L. -l$(libsendto)
 
-snw-client: snw-client.c arq.o arq.h 
+snw-client: snw-client.c arq.o arq.h libpacketErrorSendTo.a
 	gcc $(ARGV) $< arq.o -o $@ -L. -l$(libsendto)
 
-snw-server: snw-server.c arq.o arq.h 
+snw-server: snw-server.c arq.o arq.h libpacketErrorSendTo.a
 	gcc $(ARGV) $< arq.o -o $@ -L. -l$(libsendto)
 
 clean:
