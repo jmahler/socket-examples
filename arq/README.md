@@ -39,10 +39,9 @@ CREDITS
 
 Jeremiah Mahler <jmmahler@gmail.com>
 
-The unreliable sendto (packetErrorSendTo) was provided by
-Dr. Kredo as part of his introduction to network class
-(EECE 555) taught at California State University Chico.
-It was only provided in binary form.
+The unreliable sendto (packetErrorSendTo) was provided by Dr. Kredo as
+part of his introduction to network class (EECE 555) taught at
+California State University Chico.  It was only provided in binary form.
 
     packetErrorSendTo.h
     libpacketErrorSendTo_32.a

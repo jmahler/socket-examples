@@ -7,8 +7,8 @@ packets - read packets and display header information
 DESCRIPTION
 -----------
 
-Will monitor live network traffic or process a .pcap dump
-and display basic header information about the packets.
+Will monitor live network traffic or process a .pcap dump and display
+basic header information about the packets.
 
     $ sudo ./packets wlan0
     Capturing on interface 'wlan0'

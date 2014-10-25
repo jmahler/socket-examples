@@ -7,9 +7,9 @@ DESCRIPTION
 -----------
 
 This is a very simple file transfer program which can be used to
-transfer one file at a time.  The server is started and told
-what file name to save the data as.  Then the client is started
-and told what host to send to and what file to send.
+transfer one file at a time.  The server is started and given a file
+name where the data will be saved to.  The client then connects to the
+server and sends a file.
 
     (terminal 1)
     $ ./oneftp_server out.dat
@@ -18,12 +18,12 @@ and told what host to send to and what file to send.
     $ ./oneftp_client localhost in.dat
 
 When the file is transferred both the server and client exit.
-And the output file should be identical to the inputfile.
+And the output file should be identical to the input file.
 
     $ md5sum *.dat
     5bd3f31b788354d533814ae9b225a4e2  in.dat
     5bd3f31b788354d533814ae9b225a4e2  out.dat
-	$
+    $
 
 The chunk size is configurable by setting the macro BUFSIZE
 in each of the source files.  Timing tests can be run to
