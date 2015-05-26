@@ -80,7 +80,7 @@ extern int recv_seq;
  *
  */
 int arq_sendto(int sockfd, void *buf, size_t len,
-			int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
+		int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
 
 /*
  * arq_recvfrom()

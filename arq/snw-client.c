@@ -89,7 +89,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (argc != 4) {
-		fprintf(stderr, "usage: %s <host> <port> <input file>\n", argv[0]);
+		fprintf(stderr, "usage: %s <host> <port> <input file>\n",
+				argv[0]);
 		fprintf(stderr, "                output -> <in file>.out\n");
 		exit(EXIT_FAILURE);
 	}
@@ -104,9 +105,9 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	outfd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC,
-								  S_IRUSR | S_IWUSR
-								| S_IRGRP | S_IWGRP
-								| S_IROTH);
+			       S_IRUSR | S_IWUSR
+			     | S_IRGRP | S_IWGRP
+			     | S_IROTH);
 	if (-1 == outfd) {
 		perror("open outfile");
 		exit(EXIT_FAILURE);

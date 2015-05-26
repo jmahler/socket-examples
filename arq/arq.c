@@ -104,7 +104,8 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		recv_len = HEADER_SZ + MIN(len, DATA_SZ);
 
 		cliaddr_len = sizeof(cliaddr);
-		n = recvfrom(sockfd, &rbuf, recv_len, flags, &cliaddr, &cliaddr_len);
+		n = recvfrom(sockfd, &rbuf, recv_len, flags,
+				&cliaddr, &cliaddr_len);
 		if (-1 == n) {
 			perror("arq_recvfrom, recvfrom");
 			return -1;
@@ -137,7 +138,7 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		ack_buf.seq = rbuf.seq;
 		ack_buf.type = TYPE_ACK;
 		n = packetErrorSendTo(sockfd, &ack_buf, ACK_SZ, 0,
-										&cliaddr, cliaddr_len);
+				&cliaddr, cliaddr_len);
 		if (-1 == n) {
 			perror("arq_recvfrom, sendto");
 			return -1;
@@ -152,4 +153,3 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 
 	return data_len;
 }
-

@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 	for (p = res; p != NULL; p = p->ai_next) {
 
 		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-							p->ai_protocol)) == -1) {
+						p->ai_protocol)) == -1) {
 			perror("socket");
 			continue;
 		}
@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
 	while (1) {
 		cliaddr_len = sizeof(cliaddr);
 		n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
-										&cliaddr, &cliaddr_len);
+				&cliaddr, &cliaddr_len);
 		if (-1 == n) {
 			perror("arq_recvfrom");
 			exit(EXIT_FAILURE);
@@ -163,7 +163,8 @@ int main(int argc, char* argv[]) {
 		left = n;
 		i = 0;
 		while (left) {
-			n = arq_sendto(sockfd, &sbuf + i, left, 0, &cliaddr, cliaddr_len);
+			n = arq_sendto(sockfd, &sbuf + i, left, 0,
+					&cliaddr, cliaddr_len);
 			if (-1 == n) {
 				perror("arq_sendto");
 				exit(EXIT_FAILURE);
