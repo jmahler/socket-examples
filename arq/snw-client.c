@@ -33,7 +33,7 @@
  *
  * Copyright:
  *
- * Copyright &copy; 2014, Jeremiah Mahler.  All Rights Reserved.
+ * Copyright &copy; 2015, Jeremiah Mahler.  All Rights Reserved.
  * This project is free software and released under
  * the GNU General Public License.
  *

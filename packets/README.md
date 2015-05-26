@@ -32,7 +32,7 @@ The [libpcap][libpcap] library is used to read the packets.
 COPYRIGHT
 ---------
 
-Copyright &copy; 2014, Jeremiah Mahler.  All Rights Reserved.<br>
+Copyright &copy; 2015, Jeremiah Mahler.  All Rights Reserved.<br>
 This project is free software and released under
 the [GNU General Public License][gpl].
 
