@@ -14,12 +14,13 @@ sendto (packetErrorSendTo) is used to exaggerate errors.
     # First, create some data to transfer.
     dd if=/dev/urandom of=data bs=1M count=5
 
-    # Start the server so it can receive the data.
+    # Start the server so it can receive requests for files.
     (terminal 1)
     ./snw-server
     Port: 16245
 
-    # Run the client to transfer 'data' to the server.
+    # Run the client to request the 'data' file from the server.
+    # The client will receive the data and store it to 'data.out'.
     (terminal 2)
     ./snw-client localhost 16245 data
     (output will be in data.out)
