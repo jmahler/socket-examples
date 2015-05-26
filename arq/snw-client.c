@@ -104,10 +104,7 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "snprintf failed\n");
 		exit(EXIT_FAILURE);
 	}
-	outfd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC,
-			       S_IRUSR | S_IWUSR
-			     | S_IRGRP | S_IWGRP
-			     | S_IROTH);
+	outfd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0664);
 	if (-1 == outfd) {
 		perror("open outfile");
 		exit(EXIT_FAILURE);
