@@ -21,5 +21,5 @@ snw-server: snw-server.c arq.o arq.h libpacketErrorSendTo.a
 	gcc $(ARGV) $< arq.o -o $@ -L. -l$(libsendto)
 
 clean:
-	-rm -f snw-client snw-server arq.o
+	-rm -f snw-client snw-server *.a *.o
 
