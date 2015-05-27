@@ -200,13 +200,13 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 	struct arq_packet rbuf;
 	size_t recv_len, tot_len, data_len;
 
-	unsigned char ack_recvd;
+	unsigned char data_recvd;
 
 	recv_len = 0;
 	data_len = 0;
 
-	ack_recvd = 0;
-	while (!ack_recvd) {
+	data_recvd = 0;
+	while (!data_recvd) {
 		recv_len = HEADER_SZ + MIN(len, DATA_SZ);
 
 		cliaddr_len = sizeof(cliaddr);
@@ -236,7 +236,7 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 			/* next sequence number */
 			recv_seq = recv_seq ? 0 : 1;
 
-			ack_recvd = 1;
+			data_recvd = 1;
 		}
 
 		/* send an ACK */
