@@ -2,8 +2,8 @@
  * arq.h
  *
  * Given a grossly unreliable sendto() function (packetErrorSendTo)
- * the functions provided here construct a reliable layer using
- * an Automatic Repeat Request (ARQ) scheme.
+ * the functions provided here makes it reliable by using an
+ * Automatic Repeat Request (ARQ) scheme.
  *
  * The ARQ scheme uses a 1 bit sequence number and no sliding window.
  * Every send must get an ACK with the expected sequence number otherwise
@@ -11,10 +11,9 @@
  *
  * The timeout between re-sends without an ACK can be configured using
  * the TIMEOUT_MS define.  There is some optimal value which is dependent
- * upon the network being used.  If it is too small too many resends
- * will be made which will have to be handled causing it to become slow.
- * If it is too large it timeout will make it slow.
- * Note that it should still be reliable even with many resends.
+ * upon the network being used.  If it is too small, too many resends
+ * will be made, which will increase traffic and reduce throughput. If
+ * it is too large the timeout will cause it to be slow.
  *
  * Author:
  *
@@ -75,9 +74,8 @@ extern int recv_seq;
  * methods to make it reliable again.
  *
  * In the event that the other end quits responding it will
- * give up try to resend after MAX_RESEND times.
+ * give up trying to resend after MAX_RESEND times.
  * And it will return 0 indicating that no data was sent.
- *
  */
 int arq_sendto(int sockfd, void *buf, size_t len,
 		int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
