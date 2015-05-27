@@ -141,56 +141,60 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	/* Read the file name from the client. */
+	while (!quit) {
 
-	cliaddr_len = sizeof(cliaddr);
-	n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
-			&cliaddr, &cliaddr_len);
-	if (-1 == n) {
-		perror("arq_recvfrom");
-		exit(EXIT_FAILURE);
-	}
+		/* Read the file name from the client. */
 
-	/* Read the data file and send it to the client */
-
-	infile = rbuf;
-	infd = open(infile, O_RDONLY);
-	if (-1 == infd) {
-		perror("open infile");
-		exit(EXIT_FAILURE);
-	}
-
-	while ( (n = read(infd, &sbuf, MAXDATA))) {
-		if (quit)
-			break;
-
+		memset(&cliaddr, 0, sizeof(struct sockaddr));
+		cliaddr_len = sizeof(cliaddr);
+		n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
+				&cliaddr, &cliaddr_len);
 		if (-1 == n) {
-			perror("read");
+			perror("arq_recvfrom");
 			exit(EXIT_FAILURE);
 		}
 
-		left = n;
-		i = 0;
-		while (left) {
-			n = arq_sendto(sockfd, &sbuf + i, left, 0,
-					&cliaddr, cliaddr_len);
+		/* Read the data file and send it to the client */
+
+		infile = rbuf;
+		infd = open(infile, O_RDONLY);
+		if (-1 == infd) {
+			perror("open infile");
+			exit(EXIT_FAILURE);
+		}
+
+		while ( (n = read(infd, &sbuf, MAXDATA))) {
+			if (quit)
+				break;
+
 			if (-1 == n) {
-				perror("arq_sendto");
+				perror("read");
 				exit(EXIT_FAILURE);
 			}
-			left -= n;
-			i += n;
+
+			left = n;
+			i = 0;
+			while (left) {
+				n = arq_sendto(sockfd, &sbuf + i, left, 0,
+						&cliaddr, cliaddr_len);
+				if (-1 == n) {
+					perror("arq_sendto");
+					exit(EXIT_FAILURE);
+				}
+				left -= n;
+				i += n;
+			}
 		}
-	}
 
-	close(infd);
+		close(infd);
 
-	/* Send a zero length packet to signal EOF */
+		/* Send a zero length packet to signal EOF */
 
-	n = arq_sendto(sockfd, &sbuf, 0, 0, &cliaddr, cliaddr_len);
-	if (-1 == n) {
-		perror("arq_sendto, EOF");
-		exit(EXIT_FAILURE);
+		n = arq_sendto(sockfd, &sbuf, 0, 0, &cliaddr, cliaddr_len);
+		if (-1 == n) {
+			perror("arq_sendto, EOF");
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	/* Cleanup and exit */
