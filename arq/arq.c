@@ -100,7 +100,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 	struct arq_packet sbuf;
 	size_t send_len, tot_len, data_len, ack_len;
 
-	unsigned char valid;
+	unsigned char ack_recvd;
 
 	unsigned char num_resend;
 
@@ -109,8 +109,8 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 	sbuf.seq = seq;
 	sbuf.type = TYPE_DATA;
 
-	valid = 0;
-	while (!valid) {
+	ack_recvd = 0;
+	while (!ack_recvd) {
 		n = packetErrorSendTo(sockfd, &sbuf, send_len, flags,
 				dest_addr, addrlen);
 		if (-1 == n) {
@@ -155,7 +155,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 
 			seq = (seq) ? 0 : 1;
 
-			valid = 1;
+			ack_recvd = 1;
 		}
 	}
 
@@ -174,13 +174,13 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 	struct arq_packet rbuf;
 	size_t recv_len, tot_len, data_len;
 
-	unsigned char valid;
+	unsigned char ack_recvd;
 
 	recv_len = 0;
 	data_len = 0;
 
-	valid = 0;
-	while (!valid) {
+	ack_recvd = 0;
+	while (!ack_recvd) {
 		recv_len = HEADER_SZ + MIN(len, DATA_SZ);
 
 		cliaddr_len = sizeof(cliaddr);
@@ -210,7 +210,7 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 			/* next sequence number */
 			recv_seq = recv_seq ? 0 : 1;
 
-			valid = 1;
+			ack_recvd = 1;
 		}
 
 		/* send an ACK */
