@@ -157,7 +157,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 
 			valid = 1;
 		}
-	} while (!valid);
+	}
 
 	return data_len;
 }
