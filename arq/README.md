@@ -8,8 +8,8 @@ DESCRIPTION
 
 This example shows how to perform reliable data transfers
 given unreliable operations by employing [Automatic Repeat
-Request (ARQ)][arq] techniques.  In this case a grossly unreliable
-sendto (packetErrorSendTo) is used to exaggerate errors.
+Request (ARQ)][arq] techniques.  In this case the unreliable_sendto()
+function is used to create errors.
 
     # First, create some data to transfer.
     dd if=/dev/urandom of=data bs=1M count=5

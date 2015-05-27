@@ -111,7 +111,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 
 	ack_recvd = 0;
 	while (!ack_recvd) {
-		n = packetErrorSendTo(sockfd, &sbuf, send_len, flags,
+		n = unreliable_sendto(sockfd, &sbuf, send_len, flags,
 				dest_addr, addrlen);
 		if (-1 == n) {
 			perror("arq_sendto, sendto");
@@ -216,7 +216,7 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		/* send an ACK */
 		ack_buf.seq = rbuf.seq;
 		ack_buf.type = TYPE_ACK;
-		n = packetErrorSendTo(sockfd, &ack_buf, ACK_SZ, 0,
+		n = unreliable_sendto(sockfd, &ack_buf, ACK_SZ, 0,
 				&cliaddr, cliaddr_len);
 		if (-1 == n) {
 			perror("arq_recvfrom, sendto");

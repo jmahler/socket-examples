@@ -1,14 +1,14 @@
 
-#include "packetErrorSendTo.h"
+#include "unreliable_sendto.h"
 
-#ifndef PACKETERRORSENDTO_H
-#define PACKETERRORSENDTO_H
+#ifndef UNRELIABLE_SENDTO_H
+#define UNRELIABLE_SENDTO_H
 
 #include <stdio.h>
 
 static unsigned char rand;
 
-ssize_t packetErrorSendTo(int sockfd, const void *buf, size_t len, int flags,
+ssize_t unreliable_sendto(int sockfd, const void *buf, size_t len, int flags,
 			const struct sockaddr *dest_addr, socklen_t addrlen)
 {
 	rand++;
@@ -18,4 +18,4 @@ ssize_t packetErrorSendTo(int sockfd, const void *buf, size_t len, int flags,
 		return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
 }
 
-#endif /* PACKETERRORSENDTO_H */
+#endif /* UNRELIABLE_SENDTO_H */

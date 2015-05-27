@@ -1,5 +1,5 @@
 snw-client
 snw-server
-libpacketErrorSendTo.a
+libunreliable_sendto.a
 data*
 *.o

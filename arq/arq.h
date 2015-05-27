@@ -1,7 +1,7 @@
 /*
  * arq.h
  *
- * Given a grossly unreliable sendto() function (packetErrorSendTo)
+ * Given a grossly unreliable sendto() function (unreliable_sendto)
  * the functions provided here makes it reliable by using an
  * Automatic Repeat Request (ARQ) scheme.
  *
@@ -36,7 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "packetErrorSendTo.h"
+#include "unreliable_sendto.h"
 
 #define TIMEOUT_MS 0.5
 
@@ -70,7 +70,7 @@ extern int recv_seq;
  * arq_sendto()
  *
  * Works the same as sendto() except that it uses the
- * unreliable packetErrorSendTo function and it uses ARQ
+ * unreliable_sendto() function and it uses ARQ
  * methods to make it reliable again.
  *
  * In the event that the other end quits responding it will
