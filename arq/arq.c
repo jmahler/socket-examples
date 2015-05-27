@@ -85,6 +85,22 @@
  *
  */
 
+#ifdef DISABLE_ARQ
+
+int arq_sendto(int sockfd, const void *buf, size_t len,
+		int flags, const struct sockaddr *dest_addr, socklen_t addrlen)
+{
+	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
+}
+
+int arq_recvfrom(int sockfd, void *buf, size_t len,
+		int flags, struct sockaddr *src_addr, socklen_t *addrlen)
+{
+	return recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
+}
+
+#else
+
 int seq = 0;
 int recv_seq = -1;
 
@@ -232,3 +248,5 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 
 	return data_len;
 }
+
+#endif

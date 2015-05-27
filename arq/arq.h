@@ -66,6 +66,8 @@ extern int recv_seq;
 
 #define MAX_RESEND 3
 
+/*#define DISABLE_ARQ*/
+
 /*
  * arq_sendto()
  *
