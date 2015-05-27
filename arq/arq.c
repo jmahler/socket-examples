@@ -224,9 +224,8 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 			recv_seq = rbuf.seq ? 0 : 1;
 		}
 
-
 		if (tot_len >= HEADER_SZ && rbuf.type == TYPE_DATA
-				&& rbuf.seq  != recv_seq) {
+				&& rbuf.seq != recv_seq) {
 			/* received a valid packet */
 
 			/* save the data */
