@@ -77,13 +77,18 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	/* catch Ctrl-C/Ctrl-D and exit */
+	/*
+	 * Setup the interrupt handler to catch
+	 * Ctrl-C/Ctrl-D. It will set the 'quit' flag.
+	 */
 	memset(&int_act, 0, sizeof(int_act));
 	int_act.sa_handler = int_handler;
 	if (-1 == sigaction(SIGINT, &int_act, 0)) {
 		perror("int sigaction failed");
 		exit(EXIT_FAILURE);
 	}
+
+	/* Setup the server socket. */
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family 	= AF_INET;
@@ -109,7 +114,11 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 
-		/* find the port number we were given */
+		/*
+		 * Find the port number we were given and
+		 * display it to STDOUT.
+		 */
+
 		if (p->ai_family == AF_INET) {
 			len = sizeof(struct sockaddr_in);
 			if (getsockname(sockfd, (struct sockaddr *) &sin, &len) == -1) {
@@ -132,7 +141,8 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	/* receive the file name */
+	/* Read the file name from the client. */
+
 	while (1) {
 		cliaddr_len = sizeof(cliaddr);
 		n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
@@ -143,6 +153,8 @@ int main(int argc, char* argv[]) {
 		}
 		break;
 	}
+
+	/* Read the data file and send it to the client */
 
 	infile = rbuf;
 	infd = open(infile, O_RDONLY);
@@ -177,11 +189,14 @@ int main(int argc, char* argv[]) {
 	close(infd);
 
 	/* Send a zero length packet to signal EOF */
+
 	n = arq_sendto(sockfd, &sbuf, 0, 0, &cliaddr, cliaddr_len);
 	if (-1 == n) {
 		perror("arq_sendto, EOF");
 		exit(EXIT_FAILURE);
 	}
+
+	/* Cleanup and exit */
 
 	if (sockfd > 0)
 		close(sockfd);
