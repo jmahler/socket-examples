@@ -143,15 +143,12 @@ int main(int argc, char* argv[]) {
 
 	/* Read the file name from the client. */
 
-	while (1) {
-		cliaddr_len = sizeof(cliaddr);
-		n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
-				&cliaddr, &cliaddr_len);
-		if (-1 == n) {
-			perror("arq_recvfrom");
-			exit(EXIT_FAILURE);
-		}
-		break;
+	cliaddr_len = sizeof(cliaddr);
+	n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
+			&cliaddr, &cliaddr_len);
+	if (-1 == n) {
+		perror("arq_recvfrom");
+		exit(EXIT_FAILURE);
 	}
 
 	/* Read the data file and send it to the client */
