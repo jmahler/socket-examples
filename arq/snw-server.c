@@ -42,6 +42,9 @@
 
 #include "arq.h"
 
+#define SERVICE_PORT "0"  /* any available port number */
+/*#define SERVICE_PORT "48665"*/
+
 int quit = 0;
 void int_handler() {
 	quit = 1;
@@ -95,7 +98,7 @@ int main(int argc, char* argv[]) {
 	hints.ai_socktype 	= SOCK_DGRAM;
 	hints.ai_flags 		= AI_PASSIVE;
 
-	if ( (n = getaddrinfo(NULL, "0", &hints, &res)) != 0) {
+	if ( (n = getaddrinfo(NULL, SERVICE_PORT, &hints, &res)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(n));
 		exit(EXIT_FAILURE);
 	}
