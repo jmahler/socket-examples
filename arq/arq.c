@@ -1,6 +1,90 @@
 
 #include "arq.h"
 
+/*
+ *
+ *           Normal Operation
+ *           ----------------
+ *
+ * arq_recvfrom            arq_sendto
+ *      |                      |
+ *      |         data         |
+ *      |<---------------------+
+ *      |                      |
+ *      |          ACK         |
+ *      +--------------------->|
+ *      |                      |
+ *
+ *
+ *             Lost Data
+ *             ---------
+ *
+ * arq_recvfrom            arq_sendto
+ *      |                      |
+ *      |         data         |
+ *      |     X<---------------+
+ *      |                      |
+ *      |                  (timeout)
+ *      |                      |
+ *      |         data         |
+ *      |<---------------------+
+ *      |                      |
+ *      |          ACK         |
+ *      +--------------------->|
+ *      |                      |
+ *
+ *
+ *             Lost ACK
+ *             --------
+ *
+ * arq_recvfrom            arq_sendto
+ *      |                      |
+ *      |         data         |
+ *      |<---------------------+
+ *      |                      |
+ *      |          ACK         |
+ *      +------------>X        |
+ *      |                      |
+ *      |                  (timeout)
+ *      |                      |
+ *      |         data         |
+ *      |<---------------------+
+ *      |                      |
+ *      |          ACK         |
+ *      +--------------------->|
+ *      |                      |
+ *      |                      |
+ *
+ *             Delayed ACK
+ *             -----------
+ *
+ * arq_recvfrom            arq_sendto
+ *      |                      |
+ *      |         data:0       |
+ *      |<---------------------+      First chunk of data.
+ *      |                      |
+ *      | ACK:0                |
+ *      +--+                   |
+ *      |   \              (timeout)
+ *      |    \                 |
+ *      |     \   data:0       |
+ *      |<---------------------+      Resend.
+ *      |       \              |
+ *      |        +------------>|      Correct sequence number,
+ *      |                      |        ACK accepted.
+ *      |         data:1       |
+ *      |<---------------------+      Next chunk of data.
+ *      |                      |
+ *      |          ACK:0       |
+ *      +--------------------->|      Wrong sequence number,
+ *      |                      |        ACK ignored.
+ *      |          ACK:1       |
+ *      +--------------------->|      Correct sequence number,
+ *      |                      |        ACK accepted.
+ *      |                      |
+ *
+ */
+
 int seq = 0;
 int recv_seq = -1;
 
