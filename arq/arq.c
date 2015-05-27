@@ -114,6 +114,10 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 int seq = 0;
 int recv_seq = -1;
 
+void reset_seq() {
+	recv_seq = -1;
+}
+
 int arq_sendto(int sockfd, const void *buf, size_t len,
 		int flags, const struct sockaddr *dest_addr, socklen_t addrlen)
 {

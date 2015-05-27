@@ -143,6 +143,8 @@ int main(int argc, char* argv[]) {
 
 	while (!quit) {
 
+		reset_seq();
+
 		/* Read the file name from the client. */
 
 		memset(&cliaddr, 0, sizeof(struct sockaddr));

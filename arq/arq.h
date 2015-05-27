@@ -69,6 +69,15 @@ extern int recv_seq;
 /*#define DISABLE_ARQ*/
 
 /*
+ * reset_seq()
+ *
+ * The sequence number must be reset with new connections otherwise
+ * it may collide with the wrong sequence number and prevent any
+ * transfer of data.
+ */
+void reset_seq();
+
+/*
  * arq_sendto()
  *
  * Works the same as sendto() except that it uses the
