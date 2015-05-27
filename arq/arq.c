@@ -5,7 +5,7 @@ int seq = 0;
 int recv_seq = -1;
 
 int arq_sendto(int sockfd, void *buf, size_t len,
-			int flags, const struct sockaddr *dest_addr, socklen_t addrlen)
+		int flags, const struct sockaddr *dest_addr, socklen_t addrlen)
 {
 	int n;
 
@@ -20,7 +20,6 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 
 	unsigned char num_resend;
 
-	/* write some data wait for an ACK */
 	send_len = HEADER_SZ + MIN(len, DATA_SZ);
 	memcpy(&sbuf.data, buf, MIN(len, DATA_SZ));
 	sbuf.seq = seq;
@@ -29,7 +28,7 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 	valid = 0;
 	while (!valid) {
 		n = packetErrorSendTo(sockfd, &sbuf, send_len, flags,
-												dest_addr, addrlen);
+				dest_addr, addrlen);
 		if (-1 == n) {
 			perror("arq_sendto, sendto");
 			return -1;
@@ -66,10 +65,8 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 
 		ack_len = n;
 
-		if (   ack_len 		>= HEADER_SZ
-			&& ack_buf.type == TYPE_ACK
-			&& ack_buf.seq 	== seq) {
-
+		if (ack_len >= HEADER_SZ && ack_buf.type == TYPE_ACK
+				&& ack_buf.seq == seq) {
 			/* ACK confirmed */
 
 			seq = (seq) ? 0 : 1;
@@ -81,7 +78,6 @@ int arq_sendto(int sockfd, void *buf, size_t len,
 	return data_len;
 }
 
-/* receive some data and send an ACK */
 int arq_recvfrom(int sockfd, void *buf, size_t len,
 		int flags, struct sockaddr *src_addr, socklen_t *addrlen)
 {
@@ -119,9 +115,8 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		}
 
 
-		if (   tot_len   >= HEADER_SZ
-			&& rbuf.type == TYPE_DATA
-			&& rbuf.seq  != recv_seq) {
+		if (tot_len >= HEADER_SZ && rbuf.type == TYPE_DATA
+				&& rbuf.seq  != recv_seq) {
 			/* received a valid packet */
 
 			/* save the data */
