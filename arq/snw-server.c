@@ -174,6 +174,8 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	close(infd);
+
 	/* Send a zero length packet to signal EOF */
 	n = arq_sendto(sockfd, &sbuf, 0, 0, &cliaddr, cliaddr_len);
 	if (-1 == n) {
