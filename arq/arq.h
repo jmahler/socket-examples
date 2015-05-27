@@ -77,7 +77,7 @@ extern int recv_seq;
  * give up trying to resend after MAX_RESEND times.
  * And it will return 0 indicating that no data was sent.
  */
-int arq_sendto(int sockfd, void *buf, size_t len,
+int arq_sendto(int sockfd, const void *buf, size_t len,
 		int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
 
 /*
