@@ -124,7 +124,6 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 		n = unreliable_sendto(sockfd, &sbuf, send_len, flags,
 				dest_addr, addrlen);
 		if (-1 == n) {
-			perror("arq_sendto, sendto");
 			return -1;
 		}
 		/* 'n' might be less than the requested 'send_len' */
@@ -144,7 +143,6 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 
 		n = select(sockfd+1, &rd_set, NULL, NULL, &tv);
 		if (-1 == n) {
-			perror("select");
 			return -1;
 		} else if (0 == n) { /* timeout */
 
@@ -156,7 +154,6 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 
 		n = recvfrom(sockfd, (void *) &ack_buf, ACK_SZ, 0, NULL, NULL);
 		if (-1 == n) {
-			perror("arq_sendto, recvfrom");
 			return -1;
 		}
 
@@ -205,7 +202,6 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		n = recvfrom(sockfd, &rbuf, recv_len, flags,
 				&cliaddr, &cliaddr_len);
 		if (-1 == n) {
-			perror("arq_recvfrom, recvfrom");
 			return -1;
 		}
 
@@ -234,7 +230,6 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 		n = unreliable_sendto(sockfd, &ack_buf, ACK_SZ, 0,
 				&cliaddr, cliaddr_len);
 		if (-1 == n) {
-			perror("arq_recvfrom, sendto");
 			return -1;
 		}
 	}
