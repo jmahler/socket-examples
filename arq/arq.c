@@ -193,9 +193,15 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 
 	data_recvd = 0;
 	while (!data_recvd) {
+		if (src_addr != NULL) {
+			memcpy(&cliaddr, src_addr, *addrlen);
+			cliaddr_len = *addrlen;
+		} else {
+			cliaddr_len = sizeof(cliaddr);
+		}
+
 		recv_len = HEADER_SZ + MIN(len, DATA_SZ);
 
-		cliaddr_len = sizeof(cliaddr);
 		n = recvfrom(sockfd, &rbuf, recv_len, flags,
 				&cliaddr, &cliaddr_len);
 		if (-1 == n) {
@@ -234,10 +240,10 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 	}
 
 	/* update the receive addresses */
-	if (src_addr != NULL)
+	if (src_addr != NULL) {
 		memcpy(src_addr, &cliaddr, sizeof(cliaddr));
-	if (addrlen != NULL)
 		*addrlen = cliaddr_len;
+	}
 
 	return data_len;
 }
