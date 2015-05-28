@@ -102,7 +102,7 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 
 	struct arq_packet ack_buf;
 	struct arq_packet sbuf;
-	size_t send_len, tot_len, data_len, ack_len;
+	size_t send_len, data_len, ack_len;
 
 	unsigned char ack_recvd;
 
@@ -129,8 +129,7 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 
 		/* wait for data or a time out */
 
-		tot_len = n;
-		data_len = tot_len - HEADER_SZ;
+		data_len = n - HEADER_SZ;
 
 		FD_ZERO(&rd_set);
 		FD_SET(sockfd, &rd_set);
