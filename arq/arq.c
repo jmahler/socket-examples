@@ -114,6 +114,7 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 	sbuf.type = TYPE_DATA;
 
 	ack_recvd = 0;
+	num_resend = 0;
 	while (!ack_recvd) {
 		n = unreliable_sendto(sockfd, &sbuf, send_len, flags,
 				dest_addr, addrlen);
