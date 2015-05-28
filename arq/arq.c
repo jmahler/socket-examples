@@ -113,6 +113,7 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 	memcpy(&sbuf.data, buf, MIN(len, DATA_SZ));
 	sbuf.seq = seq;
 	sbuf.type = TYPE_DATA;
+	/* 'send_len' might be less than the requested 'len' */
 
 	/* main loop to send the packet and wait for an ACK */
 	ack_recvd = 0;
@@ -126,10 +127,14 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 			perror("arq_sendto, sendto");
 			return -1;
 		}
-
-		/* wait for data or a time out */
+		/* 'n' might be less than the requested 'send_len' */
 
 		data_len = n - HEADER_SZ;
+		/* Actual amount of data sent minus headers,
+		 * used for the return value on success.
+		 */
+
+		/* wait for data or a time out */
 
 		FD_ZERO(&rd_set);
 		FD_SET(sockfd, &rd_set);
