@@ -108,20 +108,26 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 
 	unsigned char num_resend;
 
+	/* build the ARQ packet to be sent */
 	send_len = HEADER_SZ + MIN(len, DATA_SZ);
 	memcpy(&sbuf.data, buf, MIN(len, DATA_SZ));
 	sbuf.seq = seq;
 	sbuf.type = TYPE_DATA;
 
+	/* main loop to send the packet and wait for an ACK */
 	ack_recvd = 0;
 	num_resend = 0;
 	while (!ack_recvd) {
+
+		/* send the ARQ packet */
 		n = unreliable_sendto(sockfd, &sbuf, send_len, flags,
 				dest_addr, addrlen);
 		if (-1 == n) {
 			perror("arq_sendto, sendto");
 			return -1;
 		}
+
+		/* wait for data or a time out */
 
 		tot_len = n;
 		data_len = tot_len - HEADER_SZ;
@@ -136,14 +142,12 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 		if (-1 == n) {
 			perror("select");
 			return -1;
-		} else if (0 == n) {
-			/* timeout */
+		} else if (0 == n) { /* timeout */
 
-			/* give up after a maximum number of re-sends */
 			if (++num_resend > MAX_RESEND)
-				return 0;
+				return 0;  /* give up */
 
-			continue;
+			continue;  /* retry */
 		}
 
 		n = recvfrom(sockfd, (void *) &ack_buf, ACK_SZ, 0, NULL, NULL);
@@ -162,6 +166,7 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 
 			ack_recvd = 1;
 		}
+		/* else data is wrong, ignore */
 	}
 
 	return data_len;
