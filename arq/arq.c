@@ -102,7 +102,7 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 
 	struct arq_packet ack_buf;
 	struct arq_packet sbuf;
-	size_t send_len, data_len, ack_len;
+	size_t send_len, data_len;
 
 	unsigned char ack_recvd;
 
@@ -155,9 +155,7 @@ int arq_sendto(int sockfd, const void *buf, size_t len,
 			return -1;
 		}
 
-		ack_len = n;
-
-		if (ack_len >= HEADER_SZ && ack_buf.type == TYPE_ACK
+		if (n >= HEADER_SZ && ack_buf.type == TYPE_ACK
 				&& ack_buf.seq == seq) {
 			/* ACK confirmed */
 
