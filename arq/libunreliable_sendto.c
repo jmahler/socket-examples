@@ -4,8 +4,6 @@
 #ifndef UNRELIABLE_SENDTO_H
 #define UNRELIABLE_SENDTO_H
 
-#include <stdio.h>
-
 static unsigned char rand;
 
 ssize_t unreliable_sendto(int sockfd, const void *buf, size_t len, int flags,
