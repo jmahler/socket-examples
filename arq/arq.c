@@ -184,7 +184,7 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 	socklen_t cliaddr_len;
 
 	struct arq_packet rbuf;
-	size_t recv_len, tot_len, data_len;
+	size_t recv_len, data_len;
 
 	unsigned char data_recvd;
 
@@ -203,19 +203,17 @@ int arq_recvfrom(int sockfd, void *buf, size_t len,
 			return -1;
 		}
 
-		tot_len = n;
-
 		/* assign initial recv_seq number */
 		if (-1 == recv_seq) {
 			recv_seq = rbuf.seq ? 0 : 1;
 		}
 
-		if (tot_len >= HEADER_SZ && rbuf.type == TYPE_DATA
+		if (n >= HEADER_SZ && rbuf.type == TYPE_DATA
 				&& rbuf.seq != recv_seq) {
 			/* received a valid packet */
 
 			/* save the data */
-			data_len = tot_len - HEADER_SZ;
+			data_len = n - HEADER_SZ;
 			memcpy(buf, rbuf.data, data_len);
 
 			/* next sequence number */
