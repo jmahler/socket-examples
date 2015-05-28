@@ -155,8 +155,12 @@ int main(int argc, char* argv[]) {
 		n = arq_recvfrom(sockfd, rbuf, MAXDATA, 0,
 				&cliaddr, &cliaddr_len);
 		if (-1 == n) {
-			perror("arq_recvfrom");
-			exit(EXIT_FAILURE);
+			if (errno == EINTR) {
+				exit(EXIT_SUCCESS);
+			} else {
+				perror("arq_recvfrom");
+				exit(EXIT_FAILURE);
+			}
 		}
 
 		/* Read the data file and send it to the client */
