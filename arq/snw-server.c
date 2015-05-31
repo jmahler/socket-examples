@@ -168,8 +168,10 @@ int main(int argc, char* argv[]) {
 		infile = rbuf;
 		infd = open(infile, O_RDONLY);
 		if (-1 == infd) {
-			perror("open infile");
-			exit(EXIT_FAILURE);
+			arq_sendto(sockfd, "HTTP/1.0 404 Not Found\r\n", 24, 0,
+					&cliaddr, cliaddr_len);
+			arq_sendto(sockfd, NULL, 0, 0, &cliaddr, cliaddr_len);
+			continue;
 		}
 
 		while ( (n = read(infd, &sbuf, MAXDATA))) {
