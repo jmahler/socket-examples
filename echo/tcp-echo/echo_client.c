@@ -71,7 +71,8 @@ int main(int argc, char* argv[]) {
 
 	/* loop through addresses, use first one that works */
 	for (p = res; p != NULL; p = p->ai_next) {
-		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		sockfd = socket(res->ai_family, res->ai_socktype,
+				res->ai_protocol);
 		if (-1 == sockfd) {
 			perror("socket");
 			continue;

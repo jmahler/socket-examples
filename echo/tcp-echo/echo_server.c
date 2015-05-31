@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 	/* loop through addresses, use first one that works */
 	for (p = res; p != NULL; p = p->ai_next) {
 		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-							p->ai_protocol)) == -1) {
+						p->ai_protocol)) == -1) {
 			perror("socket");
 			continue;
 		}
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_FAILURE);
 		}
 
-    	/* Receive input, echo back */
+		/* Receive input, echo back */
 		while (!quit) {
 
 			if ( (n = recv(cli_conn, msg, MAXLINE, 0)) < 0) {
