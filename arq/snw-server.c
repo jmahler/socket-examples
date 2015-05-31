@@ -11,7 +11,7 @@
  * Then the snw-client can connect and send a string of
  * the file name that the server should open and read
  * data from.  The server will transfer the data from
- * this file and exit.
+ * this file to the client.
  *
  *   (terminal 2)
  *   ./snw-client localhost 16245 data
