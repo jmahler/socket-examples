@@ -378,9 +378,8 @@ int main(int argc, char *argv[]) {
 		// remove new line
 		userin[n-1] = '\0';
 
-		// quit if empty line entered
 		if (0 == strcmp("", userin))
-			break;
+			continue;
 
 		// send an ARP request
 		n = arp_request(pcap_handle, userin);
