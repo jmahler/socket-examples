@@ -304,6 +304,7 @@ void int_handler() {
 /* {{{ init() */
 void init(int argc, char *argv[], char *pcap_buff) {
 	struct sigaction int_act;
+	struct sigaction timeout_act;
 	char *dev_name;
 	ssize_t n;
 
@@ -335,6 +336,14 @@ void init(int argc, char *argv[], char *pcap_buff) {
 		fprintf(stderr, "setsrcipmac() failed\n");
 		exit(EXIT_FAILURE);
 	}
+
+	// engage the timeout, to quit if there is no response
+	memset(&timeout_act, 0, sizeof(timeout_act));
+	timeout_act.sa_handler = timeout_handler;
+	if (-1 == sigaction(SIGALRM, &timeout_act, 0)) {
+		perror("timeout sigaction failed");
+		exit(EXIT_FAILURE);
+	}
 }
 /* }}} */
 
@@ -348,7 +357,6 @@ int main(int argc, char *argv[]) {
 	const u_char *packet_data = NULL;
 	char *userin = NULL;
 	char got_response;
-	struct sigaction timeout_act;
 
 	init(argc, argv, pcap_buff);
 
@@ -381,14 +389,6 @@ int main(int argc, char *argv[]) {
 
 		// wait for a response
 		got_response = 0;
-
-		// engage the timeout, to quit if there is no response
-		memset(&timeout_act, 0, sizeof(timeout_act));
-		timeout_act.sa_handler = timeout_handler;
-		if (-1 == sigaction(SIGALRM, &timeout_act, 0)) {
-			perror("timeout sigaction failed");
-			break;
-		}
 
 		// look for a response
 		while (!quit) {
