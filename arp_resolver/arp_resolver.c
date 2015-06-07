@@ -137,7 +137,7 @@ int setsrcipmac(char *dev_str) {
  * to set the ip and mac.
  *
  *   setsrcipmac();
- *   arp_inject(pcap_handle, "192.168.2.1");
+ *   arp_request(pcap_handle, "192.168.2.1");
  */
 int arp_request(pcap_t* pcap_handle, char* ipaddr_str) {
 
