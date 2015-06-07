@@ -230,7 +230,7 @@ pcap_t *pcap_handle = NULL;  // Handle for PCAP library
  *   Returns: 1 if packet was our response, 0 otherwise
  *
  * Process a received packet and check if it is for us.
- * If it is display the result.
+ * If it is, display the result.
  *
  * setsrcipmac() must be called once before using this function
  * to set the ip and mac.
@@ -294,10 +294,12 @@ void timeout_handler() {
 }
 // }}}
 
+/* {{{ int_handler */
 static int quit = 0;
 void int_handler() {
 	quit = 1;
 }
+/* }}} */
 
 int main(int argc, char *argv[]) {
 
@@ -313,15 +315,14 @@ int main(int argc, char *argv[]) {
 	struct sigaction int_act;
 	struct sigaction timeout_act;
 
+	/* Setup to catch Ctrl-C/Ctrl-D */
 	memset(&int_act, 0, sizeof(int_act));
 	int_act.sa_handler = int_handler;
-	// catch Ctrl-C/Ctrl-D
 	if (-1 == sigaction(SIGINT, &int_act, 0)) {
-		perror("int sigaction failed");
+		perror("Setup of sigaction failed");
 		exit(EXIT_FAILURE);
 	}
 
-	// Check command line arguments
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s <net device>\n", argv[0]);
 		exit(EXIT_FAILURE);
@@ -329,11 +330,10 @@ int main(int argc, char *argv[]) {
 		dev_name = argv[1];
 	}
 
-	// open device
 	pcap_handle = pcap_open_live(dev_name, BUFSIZ, 1, 0, pcap_buff);
 	if (pcap_handle == NULL) {
 		fprintf(stderr, "Error opening capture device %s: %s\n",
-												dev_name, pcap_buff);
+						dev_name, pcap_buff);
 		exit(EXIT_FAILURE);
 	}
 	printf("Capturing on interface '%s'\n", dev_name);
