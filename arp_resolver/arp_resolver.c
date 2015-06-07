@@ -393,6 +393,7 @@ int main(int argc, char *argv[]) {
 		// look for a response
 		while (!quit) {
 			// receive some data
+			alarm(RESP_TIMEOUT);
 			ret = pcap_next_ex(pcap_handle, &packet_hdr,
 					&packet_data);
 			if (ret < 0)
