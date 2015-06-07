@@ -370,6 +370,8 @@ int main(int argc, char *argv[]) {
 		userin_len = 0;
 		n = getline(&userin, &userin_len, stdin);
 		if (n < 0) {
+			if (errno == EINTR)
+				break;
 			perror("getline failed");
 			exit(EXIT_FAILURE);
 		}
