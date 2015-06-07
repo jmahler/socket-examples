@@ -301,19 +301,11 @@ void int_handler() {
 }
 /* }}} */
 
-int main(int argc, char *argv[]) {
-
-	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
-	char *dev_name = NULL;			// Device name for live capture
-	size_t userin_len = 0;
-	ssize_t n;
-	int ret;
-	struct pcap_pkthdr *packet_hdr = NULL;
-	const u_char *packet_data = NULL;
-	char *userin = NULL;
-	char got_response;
+/* {{{ init() */
+void init(int argc, char *argv[], char *pcap_buff) {
 	struct sigaction int_act;
-	struct sigaction timeout_act;
+	char *dev_name;
+	ssize_t n;
 
 	/* Setup to catch Ctrl-C/Ctrl-D */
 	memset(&int_act, 0, sizeof(int_act));
@@ -343,6 +335,22 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "setsrcipmac() failed\n");
 		exit(EXIT_FAILURE);
 	}
+}
+/* }}} */
+
+int main(int argc, char *argv[]) {
+
+	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
+	size_t userin_len = 0;
+	ssize_t n;
+	int ret;
+	struct pcap_pkthdr *packet_hdr = NULL;
+	const u_char *packet_data = NULL;
+	char *userin = NULL;
+	char got_response;
+	struct sigaction timeout_act;
+
+	init(argc, argv, pcap_buff);
 
 	while (!quit) {
 
