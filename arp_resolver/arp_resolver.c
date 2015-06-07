@@ -90,7 +90,7 @@ int setsrcipmac(char *dev_str) {
 			sin = (struct sockaddr_in *) sa;
 
 			if (NULL == inet_ntop(sin->sin_family, &(sin->sin_addr),
-											src_ip, sizeof(src_ip))) {
+						src_ip, sizeof(src_ip))) {
 				perror("inet_ntop");
 				return -2;
 			}
@@ -103,7 +103,8 @@ int setsrcipmac(char *dev_str) {
 			// build a string of the MAC address
 			// ab:ef:01:aa:de
 			for (i = 0; i < sll_halen; i++) {
-				sprintf(src_mac + i*3, "%02x:", sll->sll_addr[i]);
+				sprintf(src_mac + i*3, "%02x:",
+						sll->sll_addr[i]);
 			}
 			// remove last ':' by ending line one early
 			src_mac[sll_halen*3 - 1] = '\0';
@@ -301,7 +302,7 @@ void int_handler() {
 int main(int argc, char *argv[]) {
 
 	char pcap_buff[PCAP_ERRBUF_SIZE];	// Error buffer used by pcap
-	char *dev_name = NULL;				// Device name for live capture
+	char *dev_name = NULL;			// Device name for live capture
 	size_t userin_len = 0;
 	ssize_t n;
 	int ret;
@@ -384,11 +385,13 @@ int main(int argc, char *argv[]) {
 		// look for a response
 		while (!quit) {
 			// receive some data
-			ret = pcap_next_ex(pcap_handle, &packet_hdr, &packet_data);
+			ret = pcap_next_ex(pcap_handle, &packet_hdr,
+					&packet_data);
 			if (ret < 0)
 				break;  // timeout or error
 
-			// if the response is ours, display the result and break.
+			// if the response is ours,
+			// display the result and break.
 			if (check_response(packet_hdr, packet_data)) {
 				got_response = 1;
 				break;
