@@ -279,9 +279,9 @@ int check_response(struct pcap_pkthdr *packet_hdr, const u_char *packet_data) {
 }
 // }}}
 
-// {{{ resp_timeout_handler()
+// {{{ timeout_handler()
 /*
- * resp_timeout_handler()
+ * timeout_handler()
  *
  * pcap_next_ex() will block waiting for packets.
  * Using this handler in conjuction with signal/alarm
