@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	if (-1 == connect(sockfd, p->ai_addr, sizeof(*(p->ai_addr)))) {
+	if (-1 == connect(sockfd, p->ai_addr, p->ai_addrlen)) {
 		perror("connect");
 		exit(EXIT_FAILURE);
 	}
