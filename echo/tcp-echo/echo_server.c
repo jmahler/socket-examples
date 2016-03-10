@@ -115,12 +115,18 @@ int main(int argc, char* argv[]) {
 	/* Accept connections, one at a time */
 	while (!quit) {
 		int cli_conn;
+		int pid;
 
 		cli_conn = accept(sockfd, NULL, NULL);
 		if (cli_conn < 0) {
 			perror("accept");
 			exit(EXIT_FAILURE);
 		}
+
+		/* fork: child handles data, parent handles connections */
+		pid = fork();
+		if (pid)
+			continue;
 
 		/* Receive input, echo back */
 		while (!quit) {
