@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
 
 	/* loop through addresses, use first one that works */
 	for (p = res; p != NULL; p = p->ai_next) {
-		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 		if (-1 == sockfd) {
 			perror("socket");
 			continue;
@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
 		n = strlen(buf);
 
 		/* Send output */
-		n = sendto(sockfd, buf, n, 0, res->ai_addr, res->ai_addrlen);
+		n = sendto(sockfd, buf, n, 0, p->ai_addr, p->ai_addrlen);
 		if (n < 0) {
 			perror("sendto");
 			exit(EXIT_FAILURE);
